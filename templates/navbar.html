@@ -1,0 +1,13 @@
+<nav class="h-[80px] flex justify-between px-10">
+    <ul class="h-full flex items-center">
+        <li><a href="#">UKKKKK</a></li>
+    </ul>
+    <div class="h-full">
+    	{% if user.is_authenticated %}
+		    <span>{{ user.first_name }}</span>
+		      <button class="h-full">Logout</button>
+		{% else %}
+		    <a href="{% url 'login' %}">Login</a>
+		{% endif %}
+    </div>
+</nav>

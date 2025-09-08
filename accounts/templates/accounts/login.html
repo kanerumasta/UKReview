@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-box">
+        <h2 class="login-title">Sign In</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="login-button">Login</button>
+        </form>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 80vh;
+        background-color: #f9f9f9;
+    }
+
+    .login-box {
+        background-color: white;
+        border: 2px solid #0700c0;
+        border-radius: 12px;
+        padding: 40px;
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .login-title {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #0700c0;
+        font-size: 24px;
+    }
+
+    form p {
+        margin-bottom: 20px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 16px;
+    }
+
+    .login-button {
+        background-color: #0700c0;
+        color: white;
+        border: none;
+        padding: 12px;
+        width: 100%;
+        font-size: 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .login-button:hover {
+        background-color: orange;
+        color: #0700c0;
+    }
+
+    @media (max-width: 500px) {
+        .login-box {
+            padding: 30px 20px;
+        }
+    }
+</style>
+{% endblock %}
