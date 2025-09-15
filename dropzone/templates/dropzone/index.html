@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10">
+    <!-- Page title -->
+    <h1 class="text-3xl font-bold mb-6 text-center">Drop File Here</h1>
+
+    <!-- Dropzone -->
+    <div 
+        id="dropzone"
+        class="flex flex-col items-center justify-center border-2 border-dashed border-gray-400 rounded-2xl p-10 bg-gray-50 cursor-pointer hover:border-green-500 hover:bg-green-50 transition"
+    >
+        <i class="bi bi-file-earmark-excel text-green-500 text-5xl mb-4"></i>
+        <p class="text-lg font-medium text-gray-600">Drag & drop your excel file here</p>
+        <p class="text-sm text-gray-400 mb-4">or click to browse</p>
+
+        <!-- Hidden input -->
+        <input type="file" id="fileInput" name="file" accept=".xls,.xlsx,.csv" class="hidden" />
+        
+        <!-- Selected file preview -->
+        <p id="fileName" class="mt-4 text-blue-600 font-semibold hidden"></p>
+    </div>
+</div>
+
+<script>
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+    const fileName = document.getElementById("fileName");
+
+    // Click to open file dialog
+    dropzone.addEventListener("click", () => fileInput.click());
+
+    // Show selected file name
+    fileInput.addEventListener("change", () => {
+        if (fileInput.files.length > 0) {
+            fileName.textContent = `📂 ${fileInput.files[0].name}`;
+            fileName.classList.remove("hidden");
+        }
+    });
+
+    // Drag & drop handling
+    dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("border-blue-500", "bg-blue-50");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+        dropzone.classList.remove("border-blue-500", "bg-blue-50");
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("border-blue-500", "bg-blue-50");
+
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            fileName.textContent = `📂 ${fileInput.files[0].name}`;
+            fileName.classList.remove("hidden");
+        }
+    });
+</script>
+{% endblock %}

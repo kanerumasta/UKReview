@@ -4,12 +4,19 @@ from django.urls import path, include
 
 from accounts.views import login_view
 from home.views import home
+from jobs.views import jobs_index
+
 from django.conf import settings
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('login/', login_view, name="login"),
-    path('',home, name='home')
+    path('',home, name='dashboard'),
+    path('productivity/', include('productivity.urls')),
+    path('dropzone/', include('dropzone.urls')),
+    path('allocations/', jobs_index, name='allocations'),
+    
 ]
 
 

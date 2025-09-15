@@ -5,8 +5,9 @@
 	
 	<!-- allocation -->
 	<div>
-		<div class="flex flex-col items-end">
-			<button class="bg-blue-800 p-3 shadow-lg rounded-lg text-white text-xl">Get Allocation</button>
+		<div x-data="{count: 0}" class="flex flex-col items-end">
+			<span x-text="count"></span>
+			<button @click="count++" class="bg-blue-400 p-3 shadow-lg cursor-pointer rounded-md text-white text-lg">Get Allocation <i class="bi bi-box-arrow-down"></i></button>
 		</div>
 <!-- 
 		<table class=" w-full text-left">

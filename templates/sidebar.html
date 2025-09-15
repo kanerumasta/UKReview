@@ -1,8 +1,38 @@
-<div class="h-full">
-	<ul>
-	    <li></li>
-	    <li></li>
-	    <li></li>
-	    <li></li>
-	</ul>
+<div class="h-screen bg-gray-800 w-[250px]">
+    <div class="h-[60px] flex items-center mb-6 text-blue-400 px-3 font-bold text-xl">
+        UKKK
+    </div>
+    <ul class="">
+		
+		<li class="duration-150 cursor-pointer ">
+			<a href="{% url 'dashboard' %}" 
+			   class="flex items-center gap-2 p-3 
+					  {% if active_page == 'dashboard' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
+				<i class="bi bi-grid-fill text-gray-500" ></i>Dashboard
+			</a>
+		</li>
+		<li class="duration-150 cursor-pointer ">
+            <a href="{% url 'allocations' %}" 
+               class="flex items-center gap-2 p-3 
+                      {% if active_page == 'allocations' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
+               <i class="bi bi-pin-fill text-gray-500" ></i>Allocations
+            </a>
+        </li>
+        <li class="duration-150 cursor-pointer ">
+            <a href="{% url 'dropzone_index' %}" 
+               class="flex items-center gap-2 p-3 
+                      {% if active_page == 'dropzone' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
+               <i class="bi bi-dropbox text-gray-500" ></i>Dropzone
+            </a>
+        </li>
+
+        <li class="duration-150 cursor-pointer ">
+            <a href="{% url 'productivity_index' %}" 
+               class="flex items-center gap-2 p-3 
+                      {% if active_page == 'productivity' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
+                <i class="bi bi-bar-chart-fill text-gray-500" ></i> Productivity
+            </a>
+        </li>
+
+    </ul>
 </div>

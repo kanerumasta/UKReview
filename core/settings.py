@@ -39,6 +39,9 @@ INSTALLED_APPS = [
 
     'accounts',
     'home',
+    'productivity',
+    'dropzone',
+    'jobs'
 
 
 ]
