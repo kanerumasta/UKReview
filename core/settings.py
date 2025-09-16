@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'home',
     'productivity',
     'dropzone',
+    'enactments',
     'jobs'
 
 
