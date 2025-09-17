@@ -42,7 +42,8 @@ INSTALLED_APPS = [
     'productivity',
     'dropzone',
     'enactments',
-    'jobs'
+    'jobs',
+    'defects',
 
 
 ]

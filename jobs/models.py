@@ -20,6 +20,10 @@ class ProvisionJob(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
+    document_rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    review_outcome = models.CharField(max_length=255, null=True, blank=True)
+    remarks = models.TextField(null=True, blank=True)
+
     @property
     def total_time(self):
         from datetime import timedelta

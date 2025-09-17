@@ -37,7 +37,7 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             {% for job in jobs %}
-            <tr>
+            <tr class="cursor-pointer hover:bg-gray-200 transition" @click="window.location.href='{% url 'job_detail' job.id %}'">
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.provision.title }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.filename }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.date }}</td>
