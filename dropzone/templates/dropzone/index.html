@@ -2,13 +2,45 @@
 
 {% block content %}
 
+{% if messages %}
+<div id="message-container" class="max-w-3xl mx-auto mt-6">
+    {% for message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-white
+                {% if message.tags == 'error' %}bg-red-500{% endif %}
+                {% if message.tags == 'success' %}bg-green-500{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    // Auto-hide messages after 3 seconds (3000ms)
+    setTimeout(() => {
+        const container = document.getElementById('message-container');
+        if (container) {
+            container.style.transition = "opacity 0.5s";
+            container.style.opacity = 0;
+            setTimeout(() => container.remove(), 500); // remove after fade out
+        }
+    }, 3000);
+</script>
+{% endif %}
+
 <form id="uploadForm" method="POST" action="{% url 'upload_file' %}" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="max-w-3xl mx-auto mt-10">
-        <!-- Page title -->
+
+         <!-- Loader -->
+        <div id="loader" class="hidden mt-4 text-center">
+            <div class="spinner-border animate-spin inline-block w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full"></div>
+            <p class="mt-2 text-gray-700">Uploading, please wait...</p>
+        </div>
+
+        
         <h1 class="text-3xl font-bold mb-6 text-center">Drop File Here</h1>
 
-        <!-- Dropzone -->
+
+             <!-- Dropzone -->
         <div 
             id="dropzone"
             class="flex flex-col items-center justify-center border-2 border-dashed border-gray-400 rounded-2xl p-10 bg-gray-50 cursor-pointer hover:border-green-500 hover:bg-green-50 transition"
@@ -16,54 +48,126 @@
             <i class="bi bi-file-earmark-excel text-green-500 text-5xl mb-4"></i>
             <p class="text-lg font-medium text-gray-600">Drag & drop your excel file here</p>
             <p class="text-sm text-gray-400 mb-4">or click to browse</p>
-
-            <!-- Hidden input -->
             <input type="file" id="fileInput" name="file" accept=".xls,.xlsx,.csv" class="hidden" />
-            
-            <!-- Selected file preview -->
             <p id="fileName" class="mt-4 text-blue-600 font-semibold hidden"></p>
         </div>
+
+        
+
+
     </div>
+
+    <!-- TABLE FOR REGISTERED ENACTMENTS -->
+    <div class="max-w-14xl mx-auto p-6 bg-white rounded-lg shadow-md mt-5 overflow-x-auto">
+    <table class="min-w-full table-auto border-collapse">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Filename</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Enactment Citation</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Provision</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Date</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">User</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3"></th>
+            </tr>
+        </thead>
+       <tbody class="bg-white divide-y divide-gray-200">
+        {% for job in jobs %}
+        <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.filename }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.provision.enactment.title }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.provision.title }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.date }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.user }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.status }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="px-6 py-4 whitespace-nowrap text-center text-gray-500">
+                No Files available.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+
+    <!-- Pagination controls -->
+    <div class="mt-4 flex justify-center space-x-2">
+        {% if jobs.has_previous %}
+            <a href="?page={{ jobs.previous_page_number }}" 
+            class="px-3 py-1 bg-gray-200 rounded">Previous</a>
+        {% endif %}
+
+        <span class="px-3 py-1 border">{{ jobs.number }} / {{ jobs.paginator.num_pages }}</span>
+
+        {% if jobs.has_next %}
+            <a href="?page={{ jobs.next_page_number }}" 
+            class="px-3 py-1 bg-gray-200 rounded">Next</a>
+        {% endif %}
+    </div>
+    </table>
+</div>
+
+         
 </form>
 
 <script>
-    const dropzone = document.getElementById("dropzone");
-    const fileInput = document.getElementById("fileInput");
-    const fileName = document.getElementById("fileName");
-    const uploadForm = document.getElementById("uploadForm");
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("fileInput");
+const fileName = document.getElementById("fileName");
+const uploadForm = document.getElementById("uploadForm");
+const loader = document.getElementById("loader");
 
-    // Click to open file dialog
-    dropzone.addEventListener("click", () => fileInput.click());
+// Click to open file dialog
+dropzone.addEventListener("click", () => fileInput.click());
 
-    // Show selected file name
-    fileInput.addEventListener("change", () => {
-        if (fileInput.files.length > 0) {
-            fileName.textContent = `📂 ${fileInput.files[0].name}`;
-            fileName.classList.remove("hidden");
+// Show selected file name and confirm upload
+fileInput.addEventListener("change", () => {
+    if (fileInput.files.length > 0) {
+        fileName.textContent = `📂 ${fileInput.files[0].name}`;
+        fileName.classList.remove("hidden");
+
+        const confirmUpload = confirm(`Are you sure you want to upload "${fileInput.files[0].name}"?`);
+        if (confirmUpload) {
+            loader.classList.remove("hidden"); // show loader
+            uploadForm.submit(); // submit form
+        } else {
+            fileInput.value = "";
+            fileName.classList.add("hidden");
         }
-        uploadForm.submit();
-        
-    });
+    }
+});
 
-    // Drag & drop handling
-    dropzone.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        dropzone.classList.add("border-blue-500", "bg-blue-50");
-    });
+// Drag & drop
+dropzone.addEventListener("dragover", e => {
+    e.preventDefault();
+    dropzone.classList.add("border-blue-500", "bg-blue-50");
+});
 
-    dropzone.addEventListener("dragleave", () => {
-        dropzone.classList.remove("border-blue-500", "bg-blue-50");
-    });
+dropzone.addEventListener("dragleave", () => {
+    dropzone.classList.remove("border-blue-500", "bg-blue-50");
+});
 
-    dropzone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        dropzone.classList.remove("border-blue-500", "bg-blue-50");
+dropzone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropzone.classList.remove("border-blue-500", "bg-blue-50");
 
-        if (e.dataTransfer.files.length > 0) {
-            fileInput.files = e.dataTransfer.files;
-            fileName.textContent = `📂 ${fileInput.files[0].name}`;
-            fileName.classList.remove("hidden");
+    if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        fileName.textContent = `📂 ${fileInput.files[0].name}`;
+        fileName.classList.remove("hidden");
+
+        const confirmUpload = confirm(`Are you sure you want to upload "${fileInput.files[0].name}"?`);
+        if (confirmUpload) {
+            loader.classList.remove("hidden"); // show loader
+            uploadForm.submit();
+        } else {
+            fileInput.value = "";
+            fileName.classList.add("hidden");
         }
-    });
+    }
+});
 </script>
+
+
 {% endblock %}
