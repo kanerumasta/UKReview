@@ -6,6 +6,7 @@ from enactments.models import Enactment
 
 def jobs_index(request):
     assignment = EnactmentAssignment.objects.filter(user=request.user, status = 'active').first()
+    jobs = []
     if assignment:
         jobs = ProvisionJob.objects.filter(provision__enactment=assignment.enactment, status__in=['pending', 'active','onhold'])
     context = {
