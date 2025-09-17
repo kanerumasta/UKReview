@@ -5,7 +5,7 @@ from django.contrib.auth.models import AbstractUser
 class User(AbstractUser):
 
 	role = models.CharField(
-		max_length=50, 
+		max_length=50,
 		choices = [
 			("manager","MANAGER"),
 			("user","USER")

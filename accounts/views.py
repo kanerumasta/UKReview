@@ -12,7 +12,7 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect('home')  # Change to your homepage
+            return redirect('dashboard')  # Change to your homepage
     else:
         form = AuthenticationForm()
 

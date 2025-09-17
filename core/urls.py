@@ -15,7 +15,8 @@ urlpatterns = [
     path('',home, name='dashboard'),
     path('productivity/', include('productivity.urls')),
     path('dropzone/', include('dropzone.urls')),
-    path('allocations/', jobs_index, name='allocations'),
+    path('jobs/', include('jobs.urls')),
+    
     
 ]
 

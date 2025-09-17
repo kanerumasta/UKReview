@@ -1,31 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto mt-10">
-    <!-- Page title -->
-    <h1 class="text-3xl font-bold mb-6 text-center">Drop File Here</h1>
 
-    <!-- Dropzone -->
-    <div 
-        id="dropzone"
-        class="flex flex-col items-center justify-center border-2 border-dashed border-gray-400 rounded-2xl p-10 bg-gray-50 cursor-pointer hover:border-green-500 hover:bg-green-50 transition"
-    >
-        <i class="bi bi-file-earmark-excel text-green-500 text-5xl mb-4"></i>
-        <p class="text-lg font-medium text-gray-600">Drag & drop your excel file here</p>
-        <p class="text-sm text-gray-400 mb-4">or click to browse</p>
+<form id="uploadForm" method="POST" action="{% url 'upload_file' %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="max-w-3xl mx-auto mt-10">
+        <!-- Page title -->
+        <h1 class="text-3xl font-bold mb-6 text-center">Drop File Here</h1>
 
-        <!-- Hidden input -->
-        <input type="file" id="fileInput" name="file" accept=".xls,.xlsx,.csv" class="hidden" />
-        
-        <!-- Selected file preview -->
-        <p id="fileName" class="mt-4 text-blue-600 font-semibold hidden"></p>
+        <!-- Dropzone -->
+        <div 
+            id="dropzone"
+            class="flex flex-col items-center justify-center border-2 border-dashed border-gray-400 rounded-2xl p-10 bg-gray-50 cursor-pointer hover:border-green-500 hover:bg-green-50 transition"
+        >
+            <i class="bi bi-file-earmark-excel text-green-500 text-5xl mb-4"></i>
+            <p class="text-lg font-medium text-gray-600">Drag & drop your excel file here</p>
+            <p class="text-sm text-gray-400 mb-4">or click to browse</p>
+
+            <!-- Hidden input -->
+            <input type="file" id="fileInput" name="file" accept=".xls,.xlsx,.csv" class="hidden" />
+            
+            <!-- Selected file preview -->
+            <p id="fileName" class="mt-4 text-blue-600 font-semibold hidden"></p>
+        </div>
     </div>
-</div>
+</form>
 
 <script>
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("fileInput");
     const fileName = document.getElementById("fileName");
+    const uploadForm = document.getElementById("uploadForm");
 
     // Click to open file dialog
     dropzone.addEventListener("click", () => fileInput.click());
@@ -36,6 +41,8 @@
             fileName.textContent = `📂 ${fileInput.files[0].name}`;
             fileName.classList.remove("hidden");
         }
+        uploadForm.submit();
+        
     });
 
     // Drag & drop handling
