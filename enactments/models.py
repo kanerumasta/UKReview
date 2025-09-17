@@ -19,8 +19,8 @@ class Enactment(models.Model):
     
 class Provision(models.Model):
     enactment = models.ForeignKey(Enactment, on_delete=models.CASCADE, related_name='provisions')
-    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='provisions')
     title = models.CharField(max_length=200)
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='provisions', null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -5,11 +5,20 @@ from enactments.models import Provision, Enactment, Batch
 USER = settings.AUTH_USER_MODEL
 
 class ProvisionJob(models.Model):
-    user = models.ForeignKey(USER, on_delete=models.CASCADE, related_name='jobs')
-    date_assigned = models.DateTimeField(auto_now_add=True)
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('active', 'Active'),
+        ('onhold', 'On Hold'),
+        ('completed', 'Completed'),
+    ]
     provision = models.ForeignKey(Provision, on_delete=models.CASCADE, related_name='jobs')
-    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='jobs')
+    filename = models.CharField(max_length=255, null=True, blank=True)
+    date = models.DateField(null=True, blank=True)
+
+    user = models.ForeignKey(USER, on_delete=models.CASCADE, related_name='jobs', null=True, blank=True)
+    date_assigned = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
     @property
     def total_time(self):
@@ -23,7 +32,6 @@ class ProvisionJob(models.Model):
 
 class EnactmentAssignment(models.Model):
     enactment = models.ForeignKey(Enactment, on_delete=models.CASCADE, related_name='assignments')
-    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='assignments')
     user = models.ForeignKey(USER, on_delete=models.CASCADE, related_name='enactment_assignments')
     assigned_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -45,7 +53,7 @@ class EnactmentAssignment(models.Model):
         )
 
     def __str__(self):
-        return f"EnactmentAssignment of {self.enactment.title} to {self.assigned_to.username}"
+        return f"EnactmentAssignment of {self.enactment.title} to {self.user.username}"
     
 
 

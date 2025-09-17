@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div>
+    <h1 class="text-2xl font-bold mb-4">Job Detail</h1>
+    <p>Details for Job ID: {{ job.id }}</p>
+    <p>Provision: {{ job.provision.title }}</p>
+    <p>Filename: {{ job.filename }}</p>
+    <p>Date: {{ job.date }}</p>
+    <p>Status: {{ job.status }}</p>
+
+</div>
+{% endblock %}
