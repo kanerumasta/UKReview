@@ -1,24 +1,30 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div>
+<div x-data="{ loading: false }">
     <h1>Jobs</h1>
 
-      <!-- Allocate Enactment Button -->
+    <!-- Loading Spinner -->
+    <div x-show="loading" class="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="loader border-t-4 border-b-4 border-blue-500 rounded-full w-16 h-16 mb-4 animate-spin"></div>
+            <p class="text-white text-lg">Processing... Please wait.</p>
+        </div>
+    </div>
 
-
+    <!-- Allocate Enactment Button -->
     {% if not jobs.exists %}
     <div class="flex justify-end">
-        <form method="POST" action="{% url 'allocate_enactment' %}">
+        <form method="POST" action="{% url 'allocate_enactment' %}" @submit="loading = true">
             {% csrf_token %}
-            <button type="submit" class="bg-blue-500 my-4 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+            <button type="submit" class="bg-blue-500 my-4 cursor-pointer text-white px-4 py-2 rounded hover:bg-blue-600 transition">
                 Allocate Enactment
             </button>
         </form>
     </div>
     {% endif %}
 
-    
+    <!-- Jobs Table -->
     <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
@@ -39,27 +45,30 @@
                 <td>
                     <!-- Start button -->
                     {% if job.status == 'pending' %}
-                   
-                    <form method="POST" action="{% url 'start_job' job.id %}">
+                    <form method="POST" action="{% url 'start_job' job.id %}" @submit="loading = true">
                         {% csrf_token %}
-                        <button type="submit" class="bg-blue-400 text-white px-3 py-1 rounded hover:bg-green-600 transition"><i class="bi bi-play-fill"></i> Start</button>
+                        <button type="submit" class="bg-blue-400 text-white px-3 py-1 rounded hover:bg-green-600 transition">
+                            <i class="bi bi-play-fill"></i> Start
+                        </button>
                     </form>
                     {% else %}
-                        <button class="bg-gray-300 text-gray-700 px-3 py-1 rounded cursor-not-allowed" disabled>Start</button>
+                    <button class="bg-gray-300 text-gray-700 px-3 py-1 rounded cursor-not-allowed" disabled>Start</button>
                     {% endif %}
-
                 </td>
-               
             </tr>
             {% empty %}
             <tr>
                 <td colspan="5" class="px-6 py-4 whitespace-nowrap text-center text-gray-500">No jobs available.</td>
-                
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    
-    
 </div>
+
+<style>
+    /* Loader animation */
+    .loader {
+        border-width: 4px;
+    }
+</style>
 {% endblock %}
