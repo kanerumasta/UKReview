@@ -42,7 +42,7 @@
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.filename }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.date }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.status }}</td>
-                <td>
+                <td class="flex py-4 whitespace-nowrap gap-2">
                     <!-- Start button -->
                     {% if job.status == 'pending' %}
                     <form method="POST" action="{% url 'start_job' job.id %}" @submit="loading = true">
@@ -51,9 +51,30 @@
                             <i class="bi bi-play-fill"></i> Start
                         </button>
                     </form>
-                    {% else %}
-                    <button class="bg-gray-300 text-gray-700 px-3 py-1 rounded cursor-not-allowed" disabled>Start</button>
                     {% endif %}
+
+                     {% if job.status == 'onhold' %}
+                    <form method="POST" action="{% url 'start_job' job.id %}" @submit="loading = true">
+                        {% csrf_token %}
+                        <button type="submit" class="bg-blue-400 text-white px-3 py-1 rounded hover:bg-green-600 transition">
+                            <i class="bi bi-pause-fill"></i> 
+                        </button>
+                    </form>
+                    {% else %}
+          
+                    {% endif %}
+
+                      {% if job.status == 'active' %}
+                    <form method="POST" action="{% url 'start_job' job.id %}" @submit="loading = true">
+                        {% csrf_token %}
+                        <button type="submit" class="bg-blue-400 text-white px-3 py-1 rounded hover:bg-green-600 transition">
+                            <i class="bi bi-pause-fill"></i>
+                        </button>
+                    </form>
+                    {% else %}
+                    <button class="bg-gray-300 text-gray-700 px-3 py-1 rounded cursor-not-allowed" ><i class="bi bi-pause-fill"></i></button>
+                    {% endif %}
+
                 </td>
             </tr>
             {% empty %}
