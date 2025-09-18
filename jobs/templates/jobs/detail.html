@@ -1,13 +1,190 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div>
-    <h1 class="text-2xl font-bold mb-4">Job Detail</h1>
-    <p>Details for Job ID: {{ job.id }}</p>
-    <p>Provision: {{ job.provision.title }}</p>
-    <p>Filename: {{ job.filename }}</p>
-    <p>Date: {{ job.date }}</p>
-    <p>Status: {{ job.status }}</p>
+<div x-data="{ openForm: true }">
+    <h1 class="text-2xl font-bold mb-4">Job Details</h1>
+    <div class="grid grid-cols-3 gap-4">
+        <!-- Job Information -->
+        <div :class="openForm ? 'col-span-2' : 'col-span-3'">
+            <div class="mb-6 space-y-2">
+                <p class="text-gray-700"><span class="text-black font-semibold">Filename:</span> {{ job.filename }}</p>
+                <p class="text-gray-700"><span class="text-black font-semibold">Enactment:</span> {{ job.provision.enactment.title }}</p>
+                <p class="text-gray-700"><span class="text-black font-semibold">Provision:</span> {{ job.provision.title }}</p>
+                <p class="text-gray-700"><span class="text-black font-semibold">Date:</span> {{ job.date }}</p>
+            </div>
 
+            <!-- Defect Logs Section -->
+            <div >
+                <h2 class="text-xl font-semibold mb-2">Defect Logs</h2>
+                {% if defect_logs %}
+                <table class="min-w-full divide-y divide-gray-200 border-2 border-gray-300">
+                    <thead class="bg-gray-100 border-b-2 border-gray-300">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">DEFECT ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Check Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Severity</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Description</th>
+                            
+                            <!-- Show more fields only when form is closed -->
+                            <template x-if="!openForm">
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Expected Outcome</th>
+                            </template>
+                            <template x-if="!openForm">
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actual Outcome</th>
+                            </template>
+                            <template x-if="!openForm">
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Comments</th>
+                            </template>
+                          
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actions</th>
+                           
+                            
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for defect in defect_logs %}
+                        <tr>
+                            <td class="px-6 py-4">{{ defect.id }}</td>
+                            <td class="px-6 py-4">{{ defect.get_category_display }}</td>
+                            <td class="px-6 py-4">{{ defect.check_type }}</td>
+                            <td class="px-6 py-4">{{ defect.severity_level }}</td>
+                            <td class="px-6 py-4">{{ defect.issue_description|truncatewords:10 }}</td>
+
+                            <!-- Only show these extra fields if form is closed -->
+                            <template x-if="!openForm">
+                                <td class="px-6 py-4">{{ defect.expected_outcome }}</td>
+                            </template>
+                            <template x-if="!openForm">
+                                <td class="px-6 py-4">{{ defect.actual_outcome }}</td>
+                            </template>
+                            <template x-if="!openForm">
+                                <td class="px-6 py-4">{{ defect.comments|truncatewords:8 }}</td>
+                            </template>
+                           
+                                 <td class="px-6 py-4">
+                                <button class="text-sm text-red-500 hover:font-semibold cursor-pointer">Delete</button>
+                            </td>
+                         
+                           
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-gray-500">No defect logs available for this job.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Add Defect Log Section -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center">
+                <h2 x-show="openForm" class="text-xl font-semibold">New Defect Log</h2>
+                <button  @click="openForm = !openForm"
+                        :class="openForm ? 'cursor-pointer group':'cursor-pointer bg-red-400 p-3 rounded hover:bg-red-500'">
+                    <span x-show="!openForm" class="text-black font-semibold">Add Defect Log</span>
+                    <span x-show="openForm"  ><i class="bi bi-x-lg"></i></span>
+                </button>
+            </div>
+
+            <!-- Form (toggle visibility) -->
+            <form method="POST" action="{% url 'add_defect_log' job.id %}" 
+                  enctype="multipart/form-data" 
+                  x-show="openForm" 
+                  x-transition>
+                {% csrf_token %}
+                <div   x-data="{
+                                defectOptions: {{ defect_options|safe }},
+                                selectedCategory: '',
+                                selectedCheckType: '',
+                                checkTypes: [],
+                                severityLevel: '',
+                            }" class="grid grid-cols-1 gap-4 mt-4">
+                    <!-- Category + Check Type -->
+                    <div class="grid grid-cols-2 gap-2"
+                          >
+                            <!-- Category -->
+                            <div>
+                                <label class="block text-sm font-medium">Category</label>
+                                <select id="category" name="category"
+                                        x-model="selectedCategory"
+                                        @change="checkTypes = defectOptions[selectedCategory] || []"
+                                        class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
+                                    <option value="">Select a category</option>
+                                    <template x-for="(options, category) in defectOptions" :key="category">
+                                        <option :value="category" x-text="category"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <!-- Check Type -->
+                            <div>
+                                <label class="block text-sm font-medium">Check Type</label>
+                                <select id="check_type" name="check_type"
+                                        x-model="selectedCheckType"
+                                        @change="severityLevel = checkTypes.find(option => option.check_type === selectedCheckType)?.severity_level || ''"
+                                        class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
+                                    <option value="">Select a check type</option>
+                                    <template x-for="option in checkTypes" :key="option.check_type">
+                                        <option :value="option.check_type" x-text="option.check_type"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                          
+                        </div>
+                    <!-- Severity + Count -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-sm font-medium">Severity</label>
+                            <input type="text" id="severity_level" name="severity_level" x-model="severityLevel" readonly
+                                   class="block w-full border-gray-300 rounded-md bg-gray-100 border-2 py-2 px-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Count Per Document</label>
+                            <input type="number" id="error_count" name="error_count"
+                                   class="block w-full border-gray-300 rounded-md border-2 py-2 px-2">
+                        </div>
+                    </div>
+
+                    <!-- Description + Other Fields -->
+                    <div>
+                        <label class="block text-sm font-medium">Issue Description</label>
+                        <textarea id="issue_description" name="issue_description" rows="1"
+                                  class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Expected Outcome</label>
+                        <textarea id="expected_outcome" name="expected_outcome" rows="1"
+                                  class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Actual Outcome</label>
+                        <textarea id="actual_outcome" name="actual_outcome" rows="1"
+                                  class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Comments</label>
+                        <textarea id="comments" name="comments" rows="1"
+                                  class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Screenshot</label>
+                        <input type="file" id="screenshot" name="screenshot"
+                               class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
+                    </div>
+                </div>
+
+                <!-- Submit -->
+                <div class="mt-4">
+                    <button type="submit"
+                            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                        Add Defect Log
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

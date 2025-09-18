@@ -4,7 +4,7 @@ from .models import ProvisionJob, EnactmentAssignment
 
 @admin.register(ProvisionJob)
 class ProvisionJobAdmin(admin.ModelAdmin):
-    list_display = ('provision', 'filename', 'date', 'status')
+    list_display = ('id','provision', 'filename', 'date', 'status')
     search_fields = ('provision__title', 'filename')
 
 
