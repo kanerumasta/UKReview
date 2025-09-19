@@ -13,6 +13,8 @@ class Enactment(models.Model):
     title = models.CharField(max_length=200)
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='enactments')
     created_at = models.DateTimeField(auto_now_add=True)
+   
+   
 
     def __str__(self):
         return self.title

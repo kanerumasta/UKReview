@@ -42,4 +42,18 @@ class DefectLog(models.Model):
 
 
     def __str__(self):
-        return self.description[:50] 
+        return self.issue_description[:100] 
+    
+
+class DefectCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+class DefectOption(models.Model):
+    category = models.ForeignKey(DefectCategory, on_delete=models.CASCADE, related_name='options')
+    check_type = models.CharField(max_length=255)
+    severity_level = models.PositiveSmallIntegerField(choices=[(i, i) for i in range(1, 6)])
+
+    def __str__(self):
+        return f"{self.check_type} (Severity {self.severity_level})"

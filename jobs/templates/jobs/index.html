@@ -1,17 +1,77 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div x-data="{ loading: false }">
-    <h1>Jobs</h1>
 
-    <!-- Loading Spinner -->
-    <div x-show="loading" class="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="text-center">
-            <div class="loader border-t-4 border-b-4 border-blue-500 rounded-full w-16 h-16 mb-4 animate-spin"></div>
-            <p class="text-white text-lg">Processing... Please wait.</p>
+{% if messages %}
+<div id="message-container" class="w-full px-6 mt-6">
+    {% for message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-black
+                {% if message.tags == 'error' %}bg-red-300{% endif %}
+                {% if message.tags == 'success' %}bg-green-300{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    // Auto-hide messages after 3 seconds (3000ms)
+    setTimeout(() => {
+        const container = document.getElementById('message-container');
+        if (container) {
+            container.style.transition = "opacity 0.5s";
+            container.style.opacity = 0;
+            setTimeout(() => container.remove(), 500); // remove after fade out
+        }
+    }, 3000);
+</script>
+{% endif %}
+
+<div  x-data="{ loading: false }">
+
+    <div x-show="loading" class="flex items-center justify-center w-full rounded">
+         <div class="w-full h-2 overflow-hidden">
+        <div 
+            x-show="loading"
+            class="bg-blue-500 h-full animate-progress"
+        ></div>
         </div>
     </div>
+    <div class="p-6">
+    
+    <h1 class="mt-4 font-bold text-gray-700 text-xl mb-6">Jobs</h1>
+    {% if jobs.exists %}
+    <div class="mb-4 flex justify-between">
+        <div class="space-x-2">
+            <strong class="font-semibold text-gray-500">Enactment:</strong><span class="font-semibold">{{ jobs.0.provision.enactment.title }}</span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="relative" x-data="{ search: '' }">
+                <input
+                    type="text"
+                    x-model="search"
+                    id="searchInput"
+                    placeholder="Search..."
+                    class="w-full border border-gray-300 placeholder:italic rounded px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    @input="$dispatch('search-updated', search)"
+                />
+                <button
+                    type="button"
+                    x-show="search.length > 0"
+                    @click="search = ''; $dispatch('search-updated', search)"
+                    class="absolute cursor-pointer text-3xl right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                    aria-label="Clear search"
+                >
+                    &times;
+                </button>
+                </div>
 
+        <div class="space-x-2">
+            <strong class="font-normal text-sm text-gray-500">Remaining:</strong><span class="font-semibold">{{ jobs.count }}</span>
+        </div>
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- Allocate Enactment Button -->
     {% if not jobs.exists %}
     <div class="flex justify-end">
@@ -26,8 +86,9 @@
 
     <!-- Jobs Table -->
     <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+        <thead class="bg-gray-50 sticky top-[80px]">
             <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provision</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -37,45 +98,67 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             {% for job in jobs %}
-            <tr class="cursor-pointer hover:bg-gray-200 transition" @click="window.location.href='{% url 'job_detail' job.id %}'">
+            <tr >
+                <td class="px-6 py-4 whitespace-nowrap">JOB-{{ job.id }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.provision.title }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.filename }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.date }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{{ job.status }}</td>
-                <td class="flex py-4 whitespace-nowrap gap-2">
-                    <!-- Start button -->
-                    {% if job.status == 'pending' %}
+                <td class="px-6 py-4 whitespace-nowrap  capitalize
+               
+                "><span class="rounded-full py-2 px-4 w-[100px]
+                  {% if job.status == 'onhold' %}
+                    text-orange-400 bg-orange-100
+                {% elif job.status == 'active' %}
+                    text-blue-500 
+                {% elif job.status == 'completed' %}
+                    text-green-500 
+                {% else %}
+                    text-gray-500 bg-gray-200
+                {% endif %}
+                ">{%if job.status == 'pending'%}new{%elif job.status == 'onhold' %}Paused{% else %}{{job.status }}{%endif%}</span></td>
+               <td class="gap-2">
+    
+                   
                     <form method="POST" action="{% url 'start_job' job.id %}" @submit="loading = true">
                         {% csrf_token %}
-                        <button type="submit" class="bg-blue-400 text-white px-3 py-1 rounded hover:bg-green-600 transition">
+                        <button type="submit" class="cursor-pointer bg-blue-400 text-white px-3 py-1 rounded hover:bg-green-600 transition" title="Start">
                             <i class="bi bi-play-fill"></i> Start
                         </button>
                     </form>
-                    {% endif %}
+               
 
-                     {% if job.status == 'onhold' %}
-                    <form method="POST" action="{% url 'start_job' job.id %}" @submit="loading = true">
+                  <!-- {% if job.status != 'pending' %}
+
+                  <form method="POST" action="{% url 'start_job' job.id %}" @submit.prevent="loading = true; $el.submit()">
                         {% csrf_token %}
-                        <button type="submit" class="bg-blue-400 text-white px-3 py-1 rounded hover:bg-green-600 transition">
-                            <i class="bi bi-pause-fill"></i> 
+                        <button 
+                           
+                            type="submit" 
+                            class="cursor-pointer bg-yellow-200 text-yellow-700 border-2 border-yellow-400 px-3 py-1 rounded hover:bg-yellow-400 transition disabled:opacity-50 disabled:bg-gray-400 disabled:border-gray-600"  
+                            title="Resume">
+                            <i class="bi bi-play-fill"></i>
                         </button>
                     </form>
-                    {% else %}
-          
-                    {% endif %}
 
-                      {% if job.status == 'active' %}
-                    <form method="POST" action="{% url 'start_job' job.id %}" @submit="loading = true">
+                    <form method="POST" action="{% url 'hold' job.id %}" @submit.prevent="loading = true; $el.submit()">
                         {% csrf_token %}
-                        <button type="submit" class="bg-blue-400 text-white px-3 py-1 rounded hover:bg-green-600 transition">
-                            <i class="bi bi-pause-fill"></i>
+                        <button 
+                            {% if job.status == 'onhold' %}disabled{% endif %}
+                            type="submit" 
+                            class="cursor-pointer bg-green-200 text-green px-3 py-1 rounded border-2 border-green-400 hover:bg-green-600 transition disabled:opacity-50 disabled:bg-gray-400 disabled:border-gray-600"
+                            title="Pause"
+                        >
+                            <template x-if="loading">
+                                <span>Loading...</span>
+                            </template>
+                            <template x-if="!loading">
+                                <i class="bi bi-pause-fill"></i>
+                            </template>
                         </button>
                     </form>
-                    {% else %}
-                    <button class="bg-gray-300 text-gray-700 px-3 py-1 rounded cursor-not-allowed" ><i class="bi bi-pause-fill"></i></button>
-                    {% endif %}
 
-                </td>
+                     {% endif %} -->
+</td>
             </tr>
             {% empty %}
             <tr>
@@ -86,10 +169,50 @@
     </table>
 </div>
 
+ 
+</div>
+
+
 <style>
     /* Loader animation */
     .loader {
         border-width: 4px;
     }
+@keyframes progressBar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress {
+  width: 50%;
+  animation: progressBar 1.5s linear infinite;
+}
 </style>
+<script>
+    const navEntry = performance.getEntriesByType("navigation")[0];
+    if (navEntry && navEntry.type === 'back_forward') {
+        window.location.reload();
+    }
+    
+</script>
+<script>
+  document.addEventListener('search-updated', event => {
+    const filter = event.detail.toLowerCase();
+    const rows = document.querySelectorAll('tbody tr');
+
+    rows.forEach(row => {
+      const cells = row.querySelectorAll('td');
+      let match = false;
+
+      cells.forEach(cell => {
+        if (cell.textContent.toLowerCase().includes(filter)) {
+          match = true;
+        }
+      });
+
+      row.style.display = match ? '' : 'none';
+    });
+  });
+</script>
+
 {% endblock %}
