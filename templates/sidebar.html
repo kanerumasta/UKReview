@@ -33,6 +33,15 @@
                 <i class="bi bi-bar-chart-fill text-gray-500" ></i> Productivity
             </a>
         </li>
+        <li class="duration-150 cursor-pointer ">
+                <a href="{% url 'settings_index' %}" 
+                class="flex items-center gap-2 p-3 
+                        {% if active_page == 'settings' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
+                    <i class="bi bi-gear-fill text-gray-500" ></i> Settings
+                </a>
+            </li>
+
+        
 
     </ul>
 </div>

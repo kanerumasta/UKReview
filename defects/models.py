@@ -45,6 +45,8 @@ class DefectLog(models.Model):
         return self.issue_description[:100] 
     
 
+    
+
 class DefectCategory(models.Model):
     name = models.CharField(max_length=100, unique=True)
 

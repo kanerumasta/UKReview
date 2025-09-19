@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="p-6">
+  <h1 class="text-xl font-bold mb-4">
+    {% if category %}Edit Category{% else %}New Category{% endif %}
+  </h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+
+    <h2 class="font-semibold mt-4">Options</h2>
+    {{ formset.management_form }}
+    <table class="table-auto border w-full mt-2">
+      <thead>
+        <tr class="bg-gray-100">
+          <th class="px-4 py-2">Check Type</th>
+          <th class="px-4 py-2">Severity Level</th>
+          <th class="px-4 py-2">Delete?</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for form in formset %}
+        <tr>
+          <td class="px-4 py-2">{{ form.check_type }}</td>
+          <td class="px-4 py-2">{{ form.severity_level }}</td>
+          <td class="px-4 py-2">{{ form.DELETE }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <button type="submit" class="mt-4 bg-green-500 text-white px-4 py-2 rounded">Save</button>
+    <a href="{% url 'settings_index' %}" class="ml-2 text-gray-600">Cancel</a>
+  </form>
+</div>
+{% endblock %}

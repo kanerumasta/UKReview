@@ -6,54 +6,13 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import EnactmentAssignment, ProvisionJob, ProvisionJobSession
 from enactments.models import Enactment
-from defects.models import DefectLog
+from defects.models import DefectLog, DefectCategory
 
 from django.utils import timezone
 from django.db.models import Q, Exists, OuterRef
 from django.contrib import messages
+from settings.models import JobSettings
 
-
-# Define the defect options
-DEFECT_OPTIONS = {
-    "Completeness": [
-        {"check_type": "Missing text: multiple characters", "severity_level": 1},
-        {"check_type": "Missing text: one character", "severity_level": 3},
-        {"check_type": "Extra text", "severity_level": 2},
-        {"check_type": "Missing spacing", "severity_level": 3},
-        {"check_type": "Extra spacing", "severity_level": 4},
-    ],
-    "Structure": [
-        {"check_type": "Sub-para nesting incorrect", "severity_level": 4},
-        {"check_type": "Affected units mark up incorrect", "severity_level": 1},
-        {"check_type": "Form structure incorrect", "severity_level": 1},
-    ],
-    "Chunking": [
-        {"check_type": "Provision mark up incorrect", "severity_level": 1},
-        {"check_type": "Information panel provision number incorrect", "severity_level": 1},
-        {"check_type": "Schedules not present", "severity_level": 1},
-        {"check_type": "Schedule parts not broken out", "severity_level": 1},
-    ],
-    "Hierarchy": [
-        {"check_type": "Headings not present", "severity_level": 1},
-        {"check_type": "Headings levels incorrect", "severity_level": 3},
-    ],
-    "Duplication": [
-        {"check_type": "Duplicated text", "severity_level": 2},
-    ],
-    "Local Styling": [
-        {"check_type": "Italics incorrect", "severity_level": 4},
-        {"check_type": "Bold incorrect", "severity_level": 4},
-    ],
-    "Complex Content": [
-        {"check_type": "Table columns/rows missing or added", "severity_level": 1},
-        {"check_type": "Merged cells incorrect", "severity_level": 2},
-        {"check_type": "Formulae/Images incorrect", "severity_level": 1},
-    ],
-    "Version": [
-        {"check_type": "Version unavailable", "severity_level": 1},
-        {"check_type": "Provision with Identified Issue or Error Message", "severity_level": 1},
-    ],
-}
 
 
 def jobs_index(request):
@@ -102,12 +61,16 @@ def allocate_enactment(request):
         )
 
         # Assign only up to 10 unassigned, pending jobs
+        max_job_count = 100
+        settings = JobSettings.objects.first()
+        if settings:
+            max_job_count = settings.max_job_count
         job_ids = ProvisionJob.objects.filter(
             provision__enactment=enactment,
             status='pending',
             user__isnull=True,
             enactment_assignment__isnull=True
-        ).values_list('id', flat=True)[:100]
+        ).values_list('id', flat=True)[:max_job_count]
 
         ProvisionJob.objects.filter(id__in=job_ids).update(
             user=request.user,
@@ -214,11 +177,19 @@ def job_detail(request, job_id):
     
 
     defect_logs = DefectLog.objects.filter(provision_job=job)
+    # Build defect options dynamically from DB
+    defect_options = {}
+    categories = DefectCategory.objects.prefetch_related("options").all()
+    for category in categories:
+        defect_options[category.name] = [
+            {"check_type": option.check_type, "severity_level": option.severity_level}
+            for option in category.options.all()
+        ]
 
     context = {
         "job": job,
         "defect_logs": defect_logs,
-        "defect_options": DEFECT_OPTIONS,
+        "defect_options": defect_options,
         "active_page":"allocations"
     }
     return render(request, "jobs/detail.html", context)

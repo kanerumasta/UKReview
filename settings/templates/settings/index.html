@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="p-6" x-data="{
+  jobCountEditMode:false
+}">
+  <h1 class="text-2xl font-bold mb-4">Settings</h1>
+  <div class="mb-4 flex items-center">
+    <span class="font-semibold">Max Job Count Per User:</span>
+    <form method="POST" action="{% url 'edit_job_count' %}">
+        {% csrf_token %}
+        <input 
+          x-ref="jobCountInput"
+          name="new_count"  
+          :disabled="jobCountEditMode == false" 
+          class="text-gray-600 w-[100px] text-xl p-2 px-2 focus:border-2 border-blue-400" 
+          type="number" 
+          value="{{ settings.max_job_count }}"
+        >
+
+        <!-- Edit button -->
+        <button 
+          type="button" 
+          x-show="jobCountEditMode == false"
+          class=""
+          @click="
+            jobCountEditMode = true; 
+            $nextTick(() => $refs.jobCountInput.focus())
+          "
+        >
+         <i class="bi bi-pencil-square"></i>
+        </button>
+
+        <!-- Submit button -->
+        <button x-show="jobCountEditMode" type="submit">Save</button>
+        <button x-show="jobCountEditMode" @click="jobCountEditMode=false" type="button">Cancel</button>
+      </form>
+  </div>
+  <div class="flex justify-between">
+    
+    <h4 class="text-md font-semibold mb-4">Defect Options</h4>
+    <a href="{% url 'defect_category_create' %}" class="bg-blue-500 text-white px-4 py-2 rounded">+ Add Category</a>
+  </div>
+  
+  <table class="w-full mt-4 border">
+    <thead>
+      <tr class="bg-gray-100">
+        <th class="px-4 py-2 text-left">Name</th>
+        <th class="px-4 py-2 text-left">Options</th>
+        <th class="px-4 py-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for category in categories %}
+      <tr class="border-t">
+        <td class="px-4 py-2">{{ category.name }}</td>
+        <td class="px-4 py-2">
+          <ul>
+            {% for option in category.options.all %}
+              <li>{{ option.check_type }} (Severity {{ option.severity_level }})</li>
+            {% endfor %}
+          </ul>
+        </td>
+        <td class="px-4 py-2">
+          <a href="{% url 'defect_category_update' category.id %}" class="text-blue-500">Edit</a> |
+          <a href="{% url 'defect_category_delete' category.id %}" class="text-red-500">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="3" class="px-4 py-2 text-gray-500">No categories available.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
