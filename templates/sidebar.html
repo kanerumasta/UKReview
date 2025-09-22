@@ -34,6 +34,13 @@
             </a>
         </li>
         <li class="duration-150 cursor-pointer ">
+                <a href="#" 
+                class="flex items-center gap-2 p-3 
+                        {% if active_page == 'reports' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
+                    <i class="bi bi-clipboard-data-fill"></i> Reports
+                </a>
+            </li>
+        <li class="duration-150 cursor-pointer ">
                 <a href="{% url 'settings_index' %}" 
                 class="flex items-center gap-2 p-3 
                         {% if active_page == 'settings' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
