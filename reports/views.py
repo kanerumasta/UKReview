@@ -1,5 +1,3 @@
 from django.shortcuts import render
-from .models import Enactment
 
-
-
+# Create your views here.

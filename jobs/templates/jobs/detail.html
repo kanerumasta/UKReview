@@ -1,24 +1,112 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div x-data="{ openForm: true }">
-    <h1 class="text-2xl font-bold mb-4">Job Details</h1>
+
+{% if messages %}
+<div id="message-container" class="w-full px-6 mt-6">
+    {% for message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-black
+                {% if message.tags == 'error' %}bg-red-300{% endif %}
+                {% if message.tags == 'success' %}bg-green-300{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    // Auto-hide messages after 3 seconds (3000ms)
+    setTimeout(() => {
+        const container = document.getElementById('message-container');
+        if (container) {
+            container.style.transition = "opacity 0.5s";
+            container.style.opacity = 0;
+            setTimeout(() => container.remove(), 500); // remove after fade out
+        }
+    }, 3000);
+</script>
+{% endif %}
+
+<div x-data="{ 
+                loading:false,
+                openForm: true,
+                editMode:false,
+                defectOptions: {{ defect_options|safe }},
+                checkTypes: [],
+                submitAction:'',
+                showSubmitConfirm:false,
+                showDeleteModal: false,
+                defectToDelete: null,
+                selectedDefect: {
+                    id: null,
+                    category: '',
+                    check_type: '',
+                    severity_level: '',
+                    issue_description: '',
+                    expected_outcome: '',
+                    actual_outcome: '',
+                    comments: '',
+                    error_count:''
+                }
+}">
+<!-- <pre class="text-sm text-gray-600 bg-gray-100 p-2 rounded mt-4">
+    <code x-text="JSON.stringify(defectToDelete, null, 2)"></code>
+</pre> -->
+<div x-show="loading" class="flex items-center justify-center w-full rounded">
+         <div class="w-full h-2 overflow-hidden">
+        <div 
+            x-show="loading"
+            class="bg-blue-500 h-full animate-progress"
+        ></div>
+        </div>
+    </div>
+<div class="p-6">
+<div x-effect="checkTypes = defectOptions[selectedDefect.category] || []"></div>
+     <div class="flex items-center justify-between mb-4">
+        <!-- Back Button -->
+          <form method="POST" action="{% url 'hold' job.id %} " @submit="loading = true">
+        <button @click="window.location.href = {% url 'jobs' %}" class=" text-gray-700 py-2 px-2 cursor-pointer font-semibold bg-gray-100 rounded hover:bg-gray-300 transition mr-4">
+            <i class="bi bi-arrow-left"></i> Back
+        </button>
+        </form>
+        <div class="flex gap-2">
+            <form method="POST" action="{% url 'hold' job.id %} " @submit="loading = true">
+                <button type="submit" class="cursor-pointer font-semibold border-2 hover:bg-orange-300 border-orange-300 bg-orange-400 p-3 w-[90px] rounded-md">Pause</button>
+            </form>
+           <form x-ref="submitForm" method="POST" action="{% url 'submit_job' job.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="submit_action" x-ref="submitActionInput"  />
+                <button type="button"
+                    @click="showSubmitConfirm = true"
+                    class="cursor-pointer bg-green-400 border-2 border-green-600 hover:bg-green-300 font-semibold p-3 w-[80px] rounded-md">
+                    Submit
+                </button>
+            </form>
+
+        </div>
+        <!-- Page Heading -->
+    </div>
+   
     <div class="grid grid-cols-3 gap-4">
         <!-- Job Information -->
         <div :class="openForm ? 'col-span-2' : 'col-span-3'">
-            <div class="mb-6 space-y-2">
-                <p class="text-gray-700"><span class="text-black font-semibold">Filename:</span> {{ job.filename }}</p>
-                <p class="text-gray-700"><span class="text-black font-semibold">Enactment:</span> {{ job.provision.enactment.title }}</p>
+            <div class="mb-6  flex gap-4">
+                <div class="space-y-2">               
+                     <p class="text-gray-700"><span class="text-black font-semibold">Filename:</span> {{ job.filename }}</p>
+                    <p class="text-gray-700"><span class="text-black font-semibold">Enactment:</span> {{ job.provision.enactment.title }}</p>
+            </div>
+            <div class="space-y-2">
                 <p class="text-gray-700"><span class="text-black font-semibold">Provision:</span> {{ job.provision.title }}</p>
                 <p class="text-gray-700"><span class="text-black font-semibold">Date:</span> {{ job.date }}</p>
+                </div>
+
             </div>
 
             <!-- Defect Logs Section -->
             <div >
                 <h2 class="text-xl font-semibold mb-2">Defect Logs</h2>
                 {% if defect_logs %}
-                <table class="min-w-full divide-y divide-gray-200 border-2 border-gray-300">
-                    <thead class="bg-gray-100 border-b-2 border-gray-300">
+                <table class="min-w-full divide-y divide-gray-200 border-[1px] border-gray-300">
+                    <thead class="bg-gray-100 ">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">DEFECT ID</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Category</th>
@@ -45,26 +133,57 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for defect in defect_logs %}
                         <tr>
-                            <td class="px-6 py-4">{{ defect.id }}</td>
-                            <td class="px-6 py-4">{{ defect.get_category_display }}</td>
-                            <td class="px-6 py-4">{{ defect.check_type }}</td>
-                            <td class="px-6 py-4">{{ defect.severity_level }}</td>
-                            <td class="px-6 py-4">{{ defect.issue_description|truncatewords:10 }}</td>
+                            <td class="px-6 py-2">{{ defect.id }}</td>
+                            <td class="px-6 py-2">{{ defect.get_category_display }}</td>
+                            <td class="px-6 py-2">{{ defect.check_type }}</td>
+                            <td class="px-6 py-2">{{ defect.severity_level }}</td>
+                            <td class="px-6 py-2">{{ defect.issue_description|truncatewords:10 }}</td>
 
                             <!-- Only show these extra fields if form is closed -->
                             <template x-if="!openForm">
-                                <td class="px-6 py-4">{{ defect.expected_outcome }}</td>
+                                <td class="px-6 py-2">{{ defect.expected_outcome }}</td>
                             </template>
                             <template x-if="!openForm">
-                                <td class="px-6 py-4">{{ defect.actual_outcome }}</td>
+                                <td class="px-6 py-2">{{ defect.actual_outcome }}</td>
                             </template>
                             <template x-if="!openForm">
-                                <td class="px-6 py-4">{{ defect.comments|truncatewords:8 }}</td>
+                                <td class="px-6 py-2">{{ defect.comments|truncatewords:8 }}</td>
                             </template>
                            
-                                 <td class="px-6 py-4">
-                                <button class="text-sm text-red-500 hover:font-semibold cursor-pointer">Delete</button>
+                            <td class="flex justify-center">
+                               <button 
+                               
+                                title="Edit"
+                                @click="
+                                    editMode = true;
+                                    selectedDefect.id = '{{ defect.id }}';
+                                    selectedDefect.category = '{{ defect.category }}';
+                                    selectedDefect.check_type = '{{ defect.check_type }}';
+                                    selectedDefect.severity_level = '{{ defect.severity_level }}';
+                                    selectedDefect.issue_description = `{{ defect.issue_description|escapejs }}`;
+                                    selectedDefect.expected_outcome = `{{ defect.expected_outcome|escapejs }}`;
+                                    selectedDefect.actual_outcome = `{{ defect.actual_outcome|escapejs }}`;
+                                    selectedDefect.error_count = `{{ defect.error_count }}`;
+                                    selectedDefect.comments = `{{ defect.comments|escapejs }}`;
+                                    $nextTick(() => {
+                                        selectedDefect.check_type = '{{ defect.check_type }}';
+                                    });
+                                "
+                                class="text-sm rounded-md py-2 px-3 my-2 hover:bg-blue-200 hover:text-blue-500 text-blue-300 hover:font-semibold cursor-pointer"
+                            >
+                                <i class="bi bi-pencil-fill"></i>
+                            </button>
+   
+                                 <button 
+                                    @click="showDeleteModal = true; defectToDelete = '{{ defect.id }}';"
+                                    title="Delete"
+                                    class="text-sm rounded-md py-2 px-3 my-2 hover:bg-red-200 hover:text-red-500 text-red-300 hover:font-semibold cursor-pointer"
+                                >
+                                    <i class="bi bi-archive-fill"></i>
+                                </button>
+
                             </td>
+                    
                          
                            
                         </tr>
@@ -77,59 +196,65 @@
             </div>
         </div>
 
+
         <!-- Add Defect Log Section -->
-        <div class="mb-6">
+        <div class="my-8">
             <div class="flex justify-between items-center">
-                <h2 x-show="openForm" class="text-xl font-semibold">New Defect Log</h2>
+                <h2 x-show="openForm" class="text-xl font-semibold" x-text="editMode ? 'Edit Defect Log' : 'New Defect Log'"></h2>
                 <button  @click="openForm = !openForm"
                         :class="openForm ? 'cursor-pointer group':'cursor-pointer bg-red-400 p-3 rounded hover:bg-red-500'">
-                    <span x-show="!openForm" class="text-black font-semibold">Add Defect Log</span>
+                    <span x-show="!openForm" class="text-white ">Add Defect Log</span>
                     <span x-show="openForm"  ><i class="bi bi-x-lg"></i></span>
                 </button>
             </div>
 
             <!-- Form (toggle visibility) -->
-            <form method="POST" action="{% url 'add_defect_log' job.id %}" 
+            <form @submit="loading = true" method="POST" :action="editMode 
+           ? '{% url 'edit_defect_log' job.id %}'
+           : '{% url 'add_defect_log' job.id %}'"
                   enctype="multipart/form-data" 
                   x-show="openForm" 
                   x-transition>
                 {% csrf_token %}
-                <div   x-data="{
-                                defectOptions: {{ defect_options|safe }},
-                                selectedCategory: '',
-                                selectedCheckType: '',
-                                checkTypes: [],
-                                severityLevel: '',
-                            }" class="grid grid-cols-1 gap-4 mt-4">
+                <div   class="grid grid-cols-1 gap-2 mt-4">
                     <!-- Category + Check Type -->
                     <div class="grid grid-cols-2 gap-2"
                           >
                             <!-- Category -->
-                            <div>
-                                <label class="block text-sm font-medium">Category</label>
-                                <select id="category" name="category"
-                                        x-model="selectedCategory"
-                                        @change="checkTypes = defectOptions[selectedCategory] || []"
-                                        class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
-                                    <option value="">Select a category</option>
-                                    <template x-for="(options, category) in defectOptions" :key="category">
-                                        <option :value="category" x-text="category"></option>
-                                    </template>
-                                </select>
-                            </div>
+                           <!-- Category -->
+                        <div>
+                            <label class="block text-sm font-medium">Category</label>
+                            <select required id="category" name="category"
+                                    x-model="selectedDefect.category"
+                                    class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
+                                <option value="">Select a category</option>
+                                <template x-for="(options, category) in defectOptions" :key="category">
+                                    <option :value="category" x-text="category"></option>
+                                </template>
+                            </select>
+
+                            <!-- This watcher updates checkTypes when category is changed programmatically -->
+                            <div x-effect="checkTypes = defectOptions[selectedDefect.category] || []"></div>
+                        </div>
+
 
                             <!-- Check Type -->
                             <div>
                                 <label class="block text-sm font-medium">Check Type</label>
-                                <select id="check_type" name="check_type"
-                                        x-model="selectedCheckType"
-                                        @change="severityLevel = checkTypes.find(option => option.check_type === selectedCheckType)?.severity_level || ''"
+                                <select required id="check_type" name="check_type"
+                                        x-model="selectedDefect.check_type"
+                                        @change="selectedDefect.severity_level = checkTypes.find(option => option.check_type === selectedDefect.check_type)?.severity_level || ''"
                                         class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
-                                    <option value="">Select a check type</option>
+
+                                    <!-- Placeholder option -->
+                                    <option value="" disabled :selected="!selectedDefect.check_type">Select a check type</option>
+
+                                    <!-- Loop through checkTypes -->
                                     <template x-for="option in checkTypes" :key="option.check_type">
                                         <option :value="option.check_type" x-text="option.check_type"></option>
                                     </template>
                                 </select>
+
                             </div>
 
                           
@@ -138,12 +263,12 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-sm font-medium">Severity</label>
-                            <input type="text" id="severity_level" name="severity_level" x-model="severityLevel" readonly
+                            <input type="text" id="severity_level" name="severity_level" x-model="selectedDefect.severity_level" readonly
                                    class="block w-full border-gray-300 rounded-md bg-gray-100 border-2 py-2 px-2">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium">Count Per Document</label>
-                            <input type="number" id="error_count" name="error_count"
+                            <label class="block text-sm font-medium" >Count Per Document</label>
+                            <input required type="number" id="error_count"  x-model="selectedDefect.error_count" name="error_count"
                                    class="block w-full border-gray-300 rounded-md border-2 py-2 px-2">
                         </div>
                     </div>
@@ -151,22 +276,22 @@
                     <!-- Description + Other Fields -->
                     <div>
                         <label class="block text-sm font-medium">Issue Description</label>
-                        <textarea id="issue_description" name="issue_description" rows="1"
+                        <textarea required id="issue_description" name="issue_description" x-model="selectedDefect.issue_description" rows="1"
                                   class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
                     </div>
                     <div>
                         <label class="block text-sm font-medium">Expected Outcome</label>
-                        <textarea id="expected_outcome" name="expected_outcome" rows="1"
+                        <textarea required id="expected_outcome" name="expected_outcome" x-model="selectedDefect.expected_outcome" rows="1"
                                   class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
                     </div>
                     <div>
                         <label class="block text-sm font-medium">Actual Outcome</label>
-                        <textarea id="actual_outcome" name="actual_outcome" rows="1"
+                        <textarea required id="actual_outcome" name="actual_outcome" x-model="selectedDefect.actual_outcome" rows="1"
                                   class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
                     </div>
                     <div>
                         <label class="block text-sm font-medium">Comments</label>
-                        <textarea id="comments" name="comments" rows="1"
+                        <textarea id="comments" name="comments" x-model="selectedDefect.comments" rows="1"
                                   class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
                     </div>
                     <div>
@@ -174,17 +299,114 @@
                         <input type="file" id="screenshot" name="screenshot"
                                class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
                     </div>
+                    <input type="hidden" name="defect_id" :value="selectedDefect.id" />
+
+
                 </div>
 
                 <!-- Submit -->
                 <div class="mt-4">
                     <button type="submit"
-                            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
-                        Add Defect Log
+                            class=" bg-blue-400 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                        
+
+
+    <span x-show="editMode">Save</span>
+    <span x-show="!editMode">Add Defect Log</span>
+                        </button>
+                   
+                    <button x-show="editMode" type="button"
+                            @click="editMode = false; selectedDefect = {
+                                id: null, category: '', check_type: '', severity_level: '',
+                                issue_description: '', expected_outcome: '',
+                                actual_outcome: '', comments: '', error_count: 0
+                            }"
+                            class="ml-4 bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400 transition">
+                        Cancel
                     </button>
+
                 </div>
             </form>
         </div>
     </div>
+    </div>
+       <div x-show="showDeleteModal" x-cloak class="fixed inset-0 bg-gray-800/20  bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-1/3">
+        <h2 class="text-lg font-semibold mb-4">Confirm Delete</h2>
+        <p class="text-gray-600 mb-6">Are you sure you want to delete this defect log?</p>
+        <div class="flex justify-end gap-4">
+            <button @click="showDeleteModal = false" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 transition">
+                Cancel
+            </button>
+          <form method="POST" :action="`/jobs/${defectToDelete}/delete_defect`" @submit="loading = true">
+    {% csrf_token %}
+    <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
+        Delete
+    </button>
+</form>
+
+        </div>
+    </div>
 </div>
+
+
+<!-- Submit Confirmation Modal -->
+<div x-show="showSubmitConfirm" x-cloak class="fixed inset-0 bg-gray-800/30 flex items-center justify-center z-50">
+  <div class="bg-white rounded-lg shadow-lg p-6 w-1/3">
+    <h2 class="text-lg font-semibold mb-4">Submit Job?</h2>
+    <p class="text-gray-700 mb-6">Do you want to proceed with another job or go back to the jobs list?</p>
+    <div class="flex justify-end gap-4">
+      <button @click="showSubmitConfirm = false"
+              class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 transition">
+        Cancel
+      </button>
+      <button @click="
+          submitAction = 'start_another';
+          $refs.submitActionInput.value = submitAction;
+          showSubmitConfirm = false;
+          $refs.submitForm.submit();
+        "
+        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+        Submit & Start Another
+      </button>
+      <button @click="
+          submitAction = 'go_back';
+          showSubmitConfirm = false;
+          $refs.submitActionInput.value = submitAction
+          $refs.submitForm.submit();
+        "
+        class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+        Submit & Go Back to Jobs
+      </button>
+    </div>
+  </div>
+</div>
+
+ 
+</div>
+
+<style>
+      [x-cloak] {
+        display: none !important;
+    }
+    /* Loader animation */
+    .loader {
+        border-width: 4px;
+    }
+@keyframes progressBar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress {
+  width: 50%;
+  animation: progressBar 1.5s linear infinite;
+}
+</style>
+<script>
+    const navEntry = performance.getEntriesByType("navigation")[0];
+    if (navEntry && navEntry.type === 'back_forward') {
+        window.location.reload();
+    }
+</script>
 {% endblock %}

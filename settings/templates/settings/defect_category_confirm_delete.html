@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="p-6">
+  <h1 class="text-xl font-bold mb-4">Delete Category</h1>
+  <p>Are you sure you want to delete <strong>{{ category.name }}</strong>?</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded">Yes, Delete</button>
+    <a href="{% url 'settings_index' %}" class="ml-2 text-gray-600">Cancel</a>
+  </form>
+</div>
+{% endblock %}

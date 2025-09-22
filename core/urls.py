@@ -16,6 +16,8 @@ urlpatterns = [
     path('productivity/', include('productivity.urls')),
     path('dropzone/', include('dropzone.urls')),
     path('jobs/', include('jobs.urls')),
+    path('settings/', include('settings.urls')),
+
     
     
 ]

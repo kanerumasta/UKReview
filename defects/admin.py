@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DefectLog
+from .models import DefectLog, DefectCategory, DefectOption
 
     # provision_job = models.ForeignKey(ProvisionJob, on_delete=models.CASCADE)
     # category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
@@ -18,3 +18,14 @@ from .models import DefectLog
 @admin.register(DefectLog)
 class DefectLogAdmin(admin.ModelAdmin):
     list_display = ['id','provision_job','category','check_type', 'severity_level', 'issue_description', 'error_count','expected_outcome','actual_outcome', 'comments', 'screenshot','link']
+
+
+
+class DefectOptionInline(admin.TabularInline):
+    model = DefectOption
+    extra = 1
+
+@admin.register(DefectCategory)
+class DefectCategoryAdmin(admin.ModelAdmin):
+    inlines = [DefectOptionInline]
+
