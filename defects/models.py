@@ -42,4 +42,4 @@ class DefectLog(models.Model):
 
 
     def __str__(self):
-        return self.description[:50] 
+        return self.issue_description[:50] 

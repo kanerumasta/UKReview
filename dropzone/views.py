@@ -40,15 +40,23 @@ def upload_file(request):
             batch_name = os.path.splitext(file.name)[0]
             df = pd.read_excel(file, engine="openpyxl")
 
+      
+
             if Batch.objects.filter(name=batch_name).exists():
                 messages.error(request, "Batch with this name already exists.")
-                return render(request, "dropzone/index.html")
+                return redirect('/dropzone/')
+
+
 
             batch = Batch.objects.create(name=batch_name)
 
-            for _, row in df.iterrows():
+            for idx, row in df.iterrows():
+                # Clean up date
                 raw_date = str(row["Date"]).strip().replace("\u201c", "").replace("\u201d", "")
                 formatted_date = datetime.strptime(raw_date, "%d/%m/%Y").strftime("%Y-%m-%d")
+
+                # Access index (1-based if you prefer)
+                row_number = idx + 1  
 
                 enactment, _ = Enactment.objects.get_or_create(
                     title=row["Enactment citation"],
@@ -62,13 +70,16 @@ def upload_file(request):
                 )
 
                 ProvisionJob.objects.create(
-                    provision=provision, 
+                    provision=provision,
                     filename=row["Filename"],
                     date=formatted_date,
                 )
 
+                print(f"Processing row {row_number}")
+
             messages.success(request, "File uploaded and data saved successfully!")
             # return redirect("/jobs/")  # absolute path to jobs page
+            return redirect('/dropzone/')
 
 
         except Exception as e:

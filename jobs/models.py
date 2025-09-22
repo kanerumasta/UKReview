@@ -31,6 +31,12 @@ class ProvisionJob(models.Model):
             (s.duration for s in self.sessions.all() if s.duration),
             timedelta()
         )
+    
+    @property
+    def active_users(self):
+        """Return all users with active sessions on this job."""
+        active_sessions = self.sessions.filter(ended_at__isnull=True).select_related('provision_job__user')
+        return list({s.provision_job.user for s in active_sessions if s.provision_job.user})
 
 
 

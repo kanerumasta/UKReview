@@ -60,26 +60,48 @@
     <!-- TABLE FOR REGISTERED ENACTMENTS -->
     <div class="max-w-14xl mx-auto p-6 bg-white rounded-lg shadow-md mt-5 overflow-x-auto">
     <table class="min-w-full table-auto border-collapse">
-        <thead class="bg-gray-100">
+        <thead class="bg-gray-200">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Filename</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Enactment Citation</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Provision</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Date</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">User</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Filename</th>
+                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Enactment Citation</th>
+                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Provision</th>
+                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User</th>
+                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
                 <th class="px-6 py-3"></th>
             </tr>
         </thead>
-       <tbody class="bg-white divide-y divide-gray-200">
+       <tbody class="bg-white divide-y divide-gray-300">
         {% for job in jobs %}
-        <tr class="hover:bg-gray-50">
+        <tr class="odd:bg-white even:bg-gray-50 hover:bg-green-50">
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.filename }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.provision.enactment.title }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.provision.title }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.date }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.user }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.status }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.user.username }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {% if job.status == "completed" %}
+                    <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Completed
+                    </span>
+                {% elif job.status == "pending" %}
+                    <span class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    Pending
+                    </span>
+                {% elif job.status == "active" %}
+                    <span class="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    Active
+                    </span>
+                {% elif job.status == "onhold" %}
+                    <span class="px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                    On Hold
+                    </span>
+                {% else %}
+                    <span class="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                    {{ job.status }}
+                    </span>
+                {% endif %}
+                </td>
         </tr>
         {% empty %}
         <tr>
