@@ -1,0 +1,161 @@
+{% extends "base.html"%}
+
+{% block content %}
+<div class="p-6" x-data="{ tab: 'defects' }">
+  <!-- Title -->
+  <h2 class="text-2xl font-bold flex items-center mb-6 text-gray-900">
+    <i class="bi bi-file-earmark-text-fill mr-3 text-blue-500"></i>
+    Reports
+  </h2>
+
+  <div>
+  <!-- Batch Selector -->
+  <form method="get" class="mb-6 flex items-center gap-4">
+    <label for="batch" class="text-sm font-medium text-gray-700">Select Batch:</label>
+    <select id="batch" name="batch" 
+      onchange="this.form.submit()" 
+      class="border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white text-gray-700 shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+      <option value="">-- All Batches --</option>
+      {% for b in batches %}
+        <option value="{{ b.id }}" {% if selected_batch and selected_batch.id == b.id %}selected{% endif %}>
+          {{ b.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </form>
+  <!-- Export Buttons -->
+  <div class="mt-6 flex gap-3">
+    <a href="{% url 'partial_excel_report' %}?batch={{ selected_batch.id }}"
+      class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded-md shadow">
+      <i class="bi bi-file-earmark-spreadsheet mr-1"></i>
+      Generate Partial Report
+    </a>
+    <a href="{% url 'full_excel_report' %}?batch={{ selected_batch.id }}"
+      class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md shadow">
+      <i class="bi bi-file-earmark-excel mr-1"></i>
+      Generate Full Report
+    </a>
+  </div>
+  </div>
+
+
+  <!-- Tabs -->
+  <div class="w-full bg-white shadow rounded-lg">
+    <div class="flex border-b border-gray-200 bg-gray-50 rounded-t-lg">
+      <button @click="tab = 'defects'"
+        :class="tab === 'defects' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
+        class="px-6 py-3 text-sm focus:outline-none transition">
+        Defects
+      </button>
+      <button @click="tab = 'summary'"
+        :class="tab === 'summary' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
+        class="px-6 py-3 text-sm focus:outline-none transition">
+        Summary
+      </button>
+      <button @click="tab = 'enactments'"
+        :class="tab === 'enactments' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
+        class="px-6 py-3 text-sm focus:outline-none transition">
+        Enactments
+      </button>
+    </div>
+
+    <!-- Tab Contents -->
+    <div class="p-4 max-w-full">
+      <!-- Defects Tab -->
+      <div x-show="tab === 'defects'">
+        <h3 class="text-lg font-semibold mb-4 text-gray-800">Defects</h3>
+        <div class="overflow-x-auto max-w-full rounded-lg shadow-sm ">
+          <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-100 sticky top-0">
+              <tr>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Defect ID</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Enactment Citation</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Provision Ref(s)</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Version Date</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Category</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Check Type</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Issue Description</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Expected Outcome</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Actual Outcome</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Severity</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Count Per Document</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Logged By</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Date Logged</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Comments</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Screenshot</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Link</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-100">
+              {% for defect in defects %}
+              <tr class="hover:bg-gray-50 transition">
+                <td class="px-3 py-2 whitespace-nowrap">{{ defect.id }}</td>
+                <td class="px-3 py-2">{{ defect.provision_job.enactment_assignment.enactment.title }}</td>
+                <td class="px-3 py-2">{{ defect.provision_job.provision.title }}</td>
+                <td class="px-3 py-2 whitespace-nowrap">{{ defect.provision_job.date }}</td>
+                <td class="px-3 py-2">{{ defect.category }}</td>
+                <td class="px-3 py-2">{{ defect.check_type }}</td>
+                <td class="px-3 py-2">{{ defect.issue_description }}</td>
+                <td class="px-3 py-2">{{ defect.expected_outcome }}</td>
+                <td class="px-3 py-2">{{ defect.actual_outcome }}</td>
+                <td class="px-3 py-2">{{ defect.severity_level }}</td>
+                <td class="px-3 py-2">{{ defect.error_count }}</td>
+                <td class="px-3 py-2">{{ defect.provision_job.user.email }}</td>
+                <td class="px-3 py-2 whitespace-nowrap">{{ defect.created_at }}</td>
+                <td class="px-3 py-2">{{ defect.comments }}</td>
+                <td class="px-3 py-2">{{ defect.screenshot }}</td>
+                <td class="px-3 py-2">{{ defect.link }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="16" class="text-center text-gray-500 py-4">No defects found</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Summary Tab -->
+      <div x-show="tab === 'summary'" x-cloak>
+        <h3 class="text-lg font-semibold mb-3 text-gray-800">Summary</h3>
+        <p class="mb-3 text-gray-700">Total Defects: <span class="font-semibold text-blue-500">{{ total_defects }}</span></p>
+        <ul class="list-disc ml-5 text-gray-600">
+          {% for cat, count in category_summary.items %}
+            <li>{{ cat }}: {{ count }}</li>
+          {% empty %}
+            <li>No summary available</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <!-- Enactments Tab -->
+      <div x-show="tab === 'enactments'" x-cloak>
+        <h3 class="text-lg font-semibold mb-3 text-gray-800">Enactments</h3>
+        <div class="overflow-x-auto rounded-lg shadow-sm">
+          <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-100 sticky top-0">
+              <tr>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">ID</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Title</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-100">
+              {% for enactment in enactments %}
+              <tr class="hover:bg-gray-50 transition">
+                <td class="px-3 py-2">{{ enactment.id }}</td>
+                <td class="px-3 py-2">{{ enactment.title }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="2" class="text-center text-gray-500 py-4">No enactments found</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

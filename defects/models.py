@@ -13,7 +13,7 @@ class DefectLog(models.Model):
         ('version','Version')
     ]
     id = models.CharField(primary_key=True)
-    provision_job = models.ForeignKey(ProvisionJob, on_delete=models.CASCADE)
+    provision_job = models.ForeignKey(ProvisionJob, on_delete=models.CASCADE, related_name='defect_logs')
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     check_type = models.CharField(max_length=100)
     severity_level = models.PositiveSmallIntegerField()
