@@ -149,7 +149,32 @@ def submit_job(request, job_id):
             job.enactment_assignment.status = 'completed'
             job.enactment_assignment.save()
 
-        print('Action', submit_action)
+        lowest_severity_defect_log = job.defect_logs.order_by("severity_level").first()
+        if lowest_severity_defect_log:
+            error_count = lowest_severity_defect_log.error_count
+
+            if lowest_severity_defect_log.severity_level == 4:
+                if error_count > 10:
+                    document_rating = 1
+                else:
+                    document_rating = 3
+            elif lowest_severity_defect_log.severity_level == 3:
+                if error_count > 5:
+                    document_rating = 1
+                else:
+                    document_rating = 2
+            elif lowest_severity_defect_log.severity_level == 2:
+                document_rating = 1
+            elif lowest_severity_defect_log.severity_level == 1:
+                document_rating = 0
+            else:
+                document_rating = 0
+
+            job.document_rating = document_rating
+            job.save()
+            
+
+
 
         if submit_action == 'start_another':
             next_job = ProvisionJob.objects.filter(

@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'enactments',
     'jobs',
     'defects',
-    'settings'
+    'settings',
+    'reports',
 
 
 ]

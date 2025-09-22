@@ -25,12 +25,12 @@
 	</title>
 	{% tailwind_css %}
 </head>
-<body class="min-h-screen flex">
+<body class="min-h-screen grid grid-cols-8">
 	 
 	{% include "sidebar.html" %}
-		<div class="flex flex-1 flex-col">
+		<div class="col-span-7">
 			{% include "navbar.html" %}
-			<div class="">
+			<div class=" ">
 				{% block content %}{% endblock %}
 			</div>
 		</div>
