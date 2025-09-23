@@ -5,7 +5,8 @@ import random
 import csv
 from datetime import datetime, timedelta, date
 from jobs.models import ProvisionJob
-
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
 # Function to generate a random date
 def random_date(start, end):
@@ -16,52 +17,52 @@ def random_date(start, end):
 
 
 def index(request):
-    # Query database jobs with related objects
+    # Base queryset
     jobs = ProvisionJob.objects.select_related(
         "user", "provision", "enactment_assignment__enactment"
     ).prefetch_related("sessions")
 
-      # --- Date Filter ---
+    # --- Date Filter ---
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
+    user_id = request.GET.get("user_id")
 
     if start_date and end_date:
         try:
-            # Convert string to date
             start = datetime.strptime(start_date, "%Y-%m-%d").date()
             end = datetime.strptime(end_date, "%Y-%m-%d").date()
-
-            # Apply date filter (assuming your model has a DateField or DateTimeField called `task_date`)
-            productivity_data = productivity_data.filter(task_date__date__range=[start, end])
+            jobs = jobs.filter(date_assigned__range=[start, end])  # ✅ filter on queryset
         except Exception as e:
             print("Date filter error:", e)
 
-    # Build productivity data for table
-    productivity_data = []
+    # --- User filter ---
+    if user_id:
+        jobs = jobs.filter(user__id=user_id)  # ✅ filter on queryset
 
+    # --- Build productivity data ---
+    productivity_data = []
     for job in jobs:
         try:
-            # Calculate total time (hours)
             time_spent = round(job.total_time_minutes / 60, 2) if job.total_time_minutes else 0
-            hourly_quota = 50  # Example fixed quota
+            hourly_quota = 50
             output = 1 if job.status == "completed" else 0
             efficiency = round((output / (hourly_quota * time_spent)) * 100, 2) if time_spent > 0 else 0
 
-            # --- Fix for missing Enactment ---
             if job.enactment_assignment and job.enactment_assignment.enactment:
                 enactment_title = job.enactment_assignment.enactment.title
             elif job.provision and hasattr(job.provision, "enactment") and job.provision.enactment:
                 enactment_title = job.provision.enactment.title
             else:
                 enactment_title = None
+
             productivity_data.append({
                 "task_date": job.date_assigned,
                 "user_name": job.user.username if job.user else None,
                 "employee_name": job.user.get_full_name() if job.user else None,
-                "enactment": enactment_title,   
+                "enactment": enactment_title,
                 "provision": job.provision.title if job.provision else None,
-                "start_time": job.start_date, 
-                "end_time": job.end_date,      
+                "start_time": job.start_date,
+                "end_time": job.end_date,
                 "time_spent": time_spent,
                 "efficiency": efficiency,
             })
@@ -69,7 +70,7 @@ def index(request):
             print(f"Error processing job {job.id}: {e}")
             continue
 
-    # --- General search filter ---
+    # --- General search filter (in-memory on list) ---
     query = request.GET.get("q")
     if query:
         query_lower = query.lower()
@@ -86,30 +87,79 @@ def index(request):
             or (row["efficiency"] and query_lower in str(row["efficiency"]).lower())
         ]
 
-    # --- Pagination AFTER filtering ---
+    # --- Pagination ---
     paginator = Paginator(productivity_data, 10)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
+    # --- Dropdown list ---
+    users = (
+        User.objects.filter(jobs__isnull=False)
+        .distinct()
+        .order_by("username")
+    )
 
     context = {
-        'active_page': 'productivity',
-        'productivity_data': page_obj
+        "active_page": "productivity",
+        "productivity_data": page_obj,
+        "users": users,
+        "selected_user": user_id,
     }
-    return render(request, 'productivity/index.html', context=context)
-
-
+    return render(request, "productivity/index.html", context)
 
 def export_to_excel(request):
-    # Example CSV export
+    # Create the HTTP response with CSV content
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="productivity.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(['User Name', 'Employee Name', 'Hourly Quota', 'Time Spent', 'Output', 'UOM', 'Efficiency'])
-    
-    # Example: loop through your data
-    # for row in productivity_data:
-    #     writer.writerow([row.user_name, row.employee_name, ...])
+
+    # Write header row (based on your table)
+    writer.writerow([
+        'Date Assigned',
+        'User ID',
+        'Employee Name',
+        'Enactment',
+        'Provision',
+        'Start Date',
+        'End Date',
+        'Time Spent (hrs)',
+        'Efficiency (%)'
+    ])
+
+    # Fetch jobs with related objects
+    jobs = ProvisionJob.objects.select_related(
+        "user", "provision", "enactment_assignment__enactment"
+    )
+
+    for job in jobs:
+        try:
+            time_spent = round(job.total_time_minutes / 60, 2) if job.total_time_minutes else 0
+            hourly_quota = 50
+            output = 1 if job.status == "completed" else 0
+            efficiency = round((output / (hourly_quota * time_spent)) * 100, 2) if time_spent > 0 else 0
+
+            # Enactment logic (same as table)
+            if job.enactment_assignment and job.enactment_assignment.enactment:
+                enactment_title = job.enactment_assignment.enactment.title
+            elif job.provision and hasattr(job.provision, "enactment") and job.provision.enactment:
+                enactment_title = job.provision.enactment.title
+            else:
+                enactment_title = None
+
+            writer.writerow([
+                job.date_assigned.strftime("%Y-%m-%d") if job.date_assigned else "",
+                job.user.username if job.user else "",
+                job.user.get_full_name() if job.user else "",
+                enactment_title or "",
+                job.provision.title if job.provision else "",
+                job.start_date.strftime("%Y-%m-%d %H:%M") if job.start_date else "",
+                job.end_date.strftime("%Y-%m-%d %H:%M") if job.end_date else "",
+                time_spent,
+                efficiency,
+            ])
+        except Exception as e:
+            print(f"Error exporting job {job.id}: {e}")
+            continue
 
     return response
