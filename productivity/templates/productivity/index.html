@@ -60,7 +60,7 @@
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">User ID</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">User Name</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Enactment</th>
-                    <th class="px-4 py-2 text-left text-gray-700 font-semibold">Provision</th>
+                    <th class="px-4 py-2 text-left text-gray-700 font-semibold">Provision Ref(s)</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Start Date</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">End Date</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Time Spent (hrs)</th>
@@ -71,13 +71,13 @@
                 {% if productivity_data %}
                     {% for row in productivity_data %}
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-2">{{ row.task_date|date:"Y-m-d" }}</td>
+                        <td class="px-4 py-2">{{ row.task_date|date:"M d, Y h:i A"}}</td>
                         <td class="px-4 py-2">{{ row.user_name }}</td>
                         <td class="px-4 py-2">{{ row.employee_name }}</td>
                         <td class="px-4 py-2">{{ row.enactment }}</td>
                         <td class="px-4 py-2">{{ row.provision }}</td>
-                        <td class="px-4 py-2">{{ row.start_time|date:"Y-m-d H:i" }}</td>
-                        <td class="px-4 py-2">{{ row.end_time|date:"Y-m-d H:i" }}</td>
+                        <td class="px-4 py-2">{{ row.start_time|date:"M d, Y h:i A"}}</td>
+                        <td class="px-4 py-2">{{ row.end_time|date:"M d, Y h:i A"}}</td>
                         <td class="px-4 py-2">{{ row.time_spent }}</td>
                         <td class="px-4 py-2">{{ row.efficiency }}%</td>
                     </tr>
