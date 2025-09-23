@@ -31,6 +31,7 @@
       Generate Partial Report
     </a>
     <a href="{% url 'full_excel_report' %}?batch={{ selected_batch.id }}"
+      disabled = "{{selected_batch.all_jobs_completed}}"
       class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md shadow">
       <i class="bi bi-file-earmark-excel mr-1"></i>
       Generate Full Report

@@ -5,6 +5,13 @@ class Batch(models.Model):
     name = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def all_jobs_completed(self):
+        from jobs.models import ProvisionJob
+        return not ProvisionJob.objects.filter(
+            provision__batch=self
+        ).exclude(status='completed').exists()
+
     def __str__(self):
         return self.name
 

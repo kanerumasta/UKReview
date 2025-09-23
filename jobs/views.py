@@ -73,7 +73,8 @@ def allocate_enactment(request):
 
     ProvisionJob.objects.filter(id__in=job_ids).update(
         user=request.user,
-        enactment_assignment=assignment
+        enactment_assignment=assignment,
+        date_assigned = timezone.now()
     )
 
     return redirect("jobs")
@@ -136,6 +137,7 @@ def submit_job(request, job_id):
             last_session.ended_at = now
             job.status = "completed"
             job.end_date = now
+            job.completed_at = now
             last_session.save()
             job.save()
             last_session.save()

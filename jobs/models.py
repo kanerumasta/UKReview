@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from enactments.models import Provision, Enactment, Batch
+from enactments.models import Provision, Enactment
 
 USER = settings.AUTH_USER_MODEL
 
@@ -47,7 +47,8 @@ class ProvisionJob(models.Model):
     date = models.DateField(null=True, blank=True)
 
     user = models.ForeignKey(USER, on_delete=models.CASCADE, related_name='jobs', null=True, blank=True)
-    date_assigned = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    date_assigned = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
