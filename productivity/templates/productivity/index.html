@@ -6,7 +6,7 @@
     <!-- Page Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-left mb-6 space-y-2 md:space-y-0">
         <h1 class="text-2xl font-semibold">User Productivity Report</h1>
-        <a href="{% url 'export_to_excel' %}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded shadow">Export To Excel</a>
+        <a href="{% url 'export_to_excel' %}?{{ request.GET.urlencode }}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded shadow">Export To Excel</a>
     </div>
 
     <!-- Filter Form -->
@@ -60,7 +60,7 @@
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">User ID</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">User Name</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Enactment</th>
-                    <th class="px-4 py-2 text-left text-gray-700 font-semibold">Provision</th>
+                    <th class="px-4 py-2 text-left text-gray-700 font-semibold">Provision Ref(s)</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Start Date</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">End Date</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Time Spent (hrs)</th>
@@ -71,13 +71,13 @@
                 {% if productivity_data %}
                     {% for row in productivity_data %}
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-2">{{ row.task_date|date:"Y-m-d" }}</td>
+                        <td class="px-4 py-2">{{ row.task_date|date:"m/d/Y"}}</td>
                         <td class="px-4 py-2">{{ row.user_name }}</td>
                         <td class="px-4 py-2">{{ row.employee_name }}</td>
                         <td class="px-4 py-2">{{ row.enactment }}</td>
                         <td class="px-4 py-2">{{ row.provision }}</td>
-                        <td class="px-4 py-2">{{ row.start_time|date:"Y-m-d H:i" }}</td>
-                        <td class="px-4 py-2">{{ row.end_time|date:"Y-m-d H:i" }}</td>
+                        <td class="px-4 py-2">{{ row.start_time|date:"m/d/Y h:i A"}}</td>
+                        <td class="px-4 py-2">{{ row.end_time|date:"m/d/Y h:i A"}}</td>
                         <td class="px-4 py-2">{{ row.time_spent }}</td>
                         <td class="px-4 py-2">{{ row.efficiency }}%</td>
                     </tr>
@@ -90,6 +90,62 @@
             </tbody>
         </table>
     </div>
+<button onclick="exportTableToExcel()">Export to CSV</button>
+    <script>
+function exportTableToExcel() {
+    try {
+        const table = document.querySelector("table");
+
+        // Convert table to JSON first (to keep exact text, e.g., "200%")
+        let data = [];
+        table.querySelectorAll("tr").forEach((row, i) => {
+            let rowData = [];
+            row.querySelectorAll("th, td").forEach(cell => {
+                rowData.push(cell.innerText.trim());
+            });
+            data.push(rowData);
+        });
+
+        // Create worksheet from JSON
+        let ws = XLSX.utils.aoa_to_sheet(data);
+
+        // Apply auto-fit column widths
+        let colWidths = data[0].map((_, colIndex) => {
+            let maxWidth = 10;
+            data.forEach(row => {
+                if (row[colIndex]) {
+                    let len = row[colIndex].toString().length;
+                    if (len > maxWidth) maxWidth = len;
+                }
+            });
+            return { wch: maxWidth + 2 };
+        });
+        ws['!cols'] = colWidths;
+
+        // Create workbook
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Report");
+
+        // Dynamic filename: productivity_report_YYYYMMDD_HHMMSS.xlsx
+        let now = new Date();
+        let yyyy = now.getFullYear();
+        let mm = String(now.getMonth() + 1).padStart(2, "0");
+        let dd = String(now.getDate()).padStart(2, "0");
+        let hh = String(now.getHours()).padStart(2, "0");
+        let mi = String(now.getMinutes()).padStart(2, "0");
+        let ss = String(now.getSeconds()).padStart(2, "0");
+
+        let filename = `productivity_report_${yyyy}${mm}${dd}_${hh}${mi}${ss}.xlsx`;
+
+        // Save Excel file
+        XLSX.writeFile(wb, filename);
+
+    } catch (error) {
+        console.error("Export failed:", error);
+        alert("Something went wrong while exporting.");
+    }
+}
+</script>
 
     <!-- Pagination -->
         <div class="mt-4 flex justify-center space-x-2">

@@ -14,23 +14,26 @@ from django.core.paginator import Paginator
 
 # Dropzone view
 def index(request):
-    # fetch all jobs with related objects for display
     try:
         jobs_list = ProvisionJob.objects.select_related("provision", "user").all()
         paginator = Paginator(jobs_list, 10)  # show 10 rows per page
 
         page_number = request.GET.get("page")
         jobs = paginator.get_page(page_number)
-        print("JOBS: ", jobs)
+
+        # ✅ always count from the base queryset, not paginated jobs
+        total_uploaded_rows = jobs_list.count()
+
     except ProvisionJob.DoesNotExist:
         jobs = []
+        total_uploaded_rows = 0
 
     context = {
         "active_page": "dropzone",
         "jobs": jobs,
+        "total_uploaded_rows": total_uploaded_rows,  # 👈 add here
     }
     return render(request, "dropzone/index.html", context=context)
-
 
 
 def upload_file(request):
