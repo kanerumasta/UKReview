@@ -2,9 +2,13 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import login
 from django.shortcuts import render, redirect
 
+from django.views.decorators.csrf import csrf_exempt
+
+
 from django.contrib.auth.decorators import login_not_required
 
 
+@csrf_exempt
 @login_not_required
 def login_view(request):
     if request.method == 'POST':

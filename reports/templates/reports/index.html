@@ -24,19 +24,26 @@
     </select>
   </form>
   <!-- Export Buttons -->
-  <div class="mt-6 flex gap-3">
+  <div class="my-6 flex gap-3">
     <a href="{% url 'partial_excel_report' %}?batch={{ selected_batch.id }}"
       class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded-md shadow">
       <i class="bi bi-file-earmark-spreadsheet mr-1"></i>
       Generate Partial Report
     </a>
-    <a href="{% url 'full_excel_report' %}?batch={{ selected_batch.id }}"
-      class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md shadow">
-      <i class="bi bi-file-earmark-excel mr-1"></i>
-      Generate Full Report
-    </a>
+   <a href="{% url 'full_excel_report' %}?batch={{ selected_batch.id }}"
+   class="px-4 py-2 text-white text-sm rounded-md shadow
+          {% if selected_batch.all_jobs_completed %}
+          bg-green-600 hover:bg-green-700
+             
+          {% else %}
+               bg-gray-400 cursor-not-allowed pointer-events-none
+          {% endif %}">
+   <i class="bi bi-file-earmark-excel mr-1"></i>
+   Generate Full Report
+</a>
   </div>
   </div>
+ 
 
 
   <!-- Tabs -->
@@ -63,7 +70,29 @@
     <div class="p-4 max-w-full">
       <!-- Defects Tab -->
       <div x-show="tab === 'defects'">
-        <h3 class="text-lg font-semibold mb-4 text-gray-800">Defects</h3>
+              <h3 class="text-lg font-semibold mb-4 text-gray-800">Defects</h3>
+              <form method="get" class="mb-4  flex gap-2 items-center justify-end">
+          <input type="hidden" name="batch" value="{{ selected_batch.id }}">
+          
+          <input type="text" name="search" placeholder="Search defects..."
+              value="{{ search_query }}"
+              class="border border-gray-400 px-3 py-2 rounded-md text-sm shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+
+          <select name="severity"
+              class="border border-gray-400 px-3 py-2 rounded-md text-sm shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">-- All Severities --</option>
+              <option value="1" {% if severity_filter == "1" %}selected{% endif %}>1</option>
+              <option value="2" {% if severity_filter == "2" %}selected{% endif %}>2</option>
+              <option value="3" {% if severity_filter == "3" %}selected{% endif %}>3</option>
+              <option value="4" {% if severity_filter == "4" %}selected{% endif %}>4</option>
+          </select>
+
+          <button type="submit"
+              class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm shadow">
+              Filter
+          </button>
+      </form>
+
         <div class="overflow-x-auto max-w-full rounded-lg shadow-sm ">
           <table class="min-w-full divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-100 sticky top-0">
@@ -114,6 +143,22 @@
             </tbody>
           </table>
         </div>
+        <div class="mt-4 flex justify-center space-x-2">
+    {% if defects.has_previous %}
+        <a href="?batch={{ selected_batch.id }}&search={{ search_query }}&severity={{ severity_filter }}&page={{ defects.previous_page_number }}"
+           class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Previous</a>
+    {% endif %}
+
+    <span class="px-3 py-1 bg-gray-100 rounded">
+        Page {{ defects.number }} of {{ defects.paginator.num_pages }}
+    </span>
+
+    {% if defects.has_next %}
+        <a href="?batch={{ selected_batch.id }}&search={{ search_query }}&severity={{ severity_filter }}&page={{ defects.next_page_number }}"
+           class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Next</a>
+    {% endif %}
+</div>
+
       </div>
 
       <!-- Summary Tab -->
