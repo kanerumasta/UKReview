@@ -9,7 +9,7 @@ from django.contrib import messages
 from .models import JobSettings
 
 def index(request):
-    categories = DefectCategory.objects.all()
+    categories = DefectCategory.objects.all().order_by("name")
     settings = JobSettings.objects.first()
     context = {
         "categories":categories,
@@ -60,14 +60,22 @@ def defect_category_update(request, pk):
         form = DefectCategoryForm(request.POST, instance=category)
         formset = DefectOptionFormSet(request.POST, instance=category)
         if form.is_valid() and formset.is_valid():
-            form.save()
+            category = form.save()
+            formset.instance = category  # <-- important
             formset.save()
             messages.success(request, "Defect category updated successfully.")
             return redirect("settings_index")
+        else:
+            print(formset.errors)
     else:
         form = DefectCategoryForm(instance=category)
         formset = DefectOptionFormSet(instance=category)
-    return render(request, "settings/defect_category_form.html", {"form": form, "formset": formset, "category": category})
+    return render(
+        request, 
+        "settings/defect_category_form.html", 
+        {"form": form, "formset": formset, "category": category}
+    )
+
 
 def defect_category_delete(request, pk):
     category = get_object_or_404(DefectCategory, pk=pk)

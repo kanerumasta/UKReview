@@ -8,18 +8,44 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from django.db.models import Count, Sum
 from openpyxl.utils import get_column_letter, range_boundaries
 
+from django.core.paginator import Paginator
+from django.db.models import Q
 
 def reports_view(request):
-    batches = Batch.objects.all().order_by("-created_at")  # newest first
+    batches = Batch.objects.all().order_by("-created_at")
     batch_id = request.GET.get("batch")
+    search_query = request.GET.get("search", "")  # search input
+    severity_filter = request.GET.get("severity", "")  # optional filter
 
     if batch_id:
         selected_batch = get_object_or_404(Batch, id=batch_id)
     else:
-        selected_batch = batches.first()  # ✅ default to latest batch
+        selected_batch = batches.first()
 
-    enactments = Enactment.objects.filter(batch=selected_batch) if selected_batch else Enactment.objects.none()
-    defects = DefectLog.objects.filter(provision_job__provision__batch=selected_batch) if selected_batch else DefectLog.objects.none()
+    defects = DefectLog.objects.filter(
+        provision_job__provision__batch=selected_batch,
+        provision_job__status="completed"
+    ).order_by("id") if selected_batch else DefectLog.objects.none()
+
+    # Apply search
+    if search_query:
+        defects = defects.filter(
+            Q(issue_description__icontains=search_query) |
+            Q(expected_outcome__icontains=search_query) |
+            Q(actual_outcome__icontains=search_query) |
+            Q(provision_job__provision__title__icontains=search_query) |
+            Q(category__icontains=search_query) |
+            Q(provision_job__enactment_assignment__enactment__title__icontains=search_query)
+        )
+
+    # Apply severity filter
+    if severity_filter:
+        defects = defects.filter(severity_level=severity_filter)
+
+    # Pagination
+    paginator = Paginator(defects, 10)  # 10 defects per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
     # Summary
     category_summary = {}
@@ -29,12 +55,15 @@ def reports_view(request):
     context = {
         "batches": batches,
         "selected_batch": selected_batch,
-        "enactments": enactments,
-        "defects": defects,
+        "enactments": Enactment.objects.filter(batch=selected_batch) if selected_batch else Enactment.objects.none(),
+        "defects": page_obj,  # paginated
         "total_defects": defects.count(),
         "category_summary": category_summary,
+        "search_query": search_query,
+        "severity_filter": severity_filter,
     }
     return render(request, "reports/index.html", context)
+
 
 
 def partial_excel_report(request):

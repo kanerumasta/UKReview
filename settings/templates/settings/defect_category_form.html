@@ -21,6 +21,11 @@
       <tbody>
         {% for form in formset %}
         <tr>
+          {# Render hidden fields (id, etc.) #}
+          {% for hidden in form.hidden_fields %}
+            {{ hidden }}
+          {% endfor %}
+
           <td class="px-4 py-2">{{ form.check_type }}</td>
           <td class="px-4 py-2">{{ form.severity_level }}</td>
           <td class="px-4 py-2">{{ form.DELETE }}</td>
