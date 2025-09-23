@@ -114,7 +114,7 @@
                             <!-- Category -->
                            <!-- Category -->
                         <div>
-                            <label class="block text-sm font-medium">Category</label>
+                            <label class="block text-sm font-medium">Category <span class="text-red-400">*</span></label>
                             <select required id="category" name="category"
                                     x-model="selectedDefect.category"
                                     class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
@@ -131,7 +131,7 @@
 
                             <!-- Check Type -->
                             <div>
-                                <label class="block text-sm font-medium">Check Type</label>
+                                <label class="block text-sm font-medium">Check Type <span class="text-red-400">*</span></label>
                                 <select required id="check_type" name="check_type"
                                         x-model="selectedDefect.check_type"
                                         @change="selectedDefect.severity_level = checkTypes.find(option => option.check_type === selectedDefect.check_type)?.severity_level || ''"
@@ -158,7 +158,7 @@
                                    class="block w-full border-gray-300 rounded-md bg-gray-100 border-2 py-2 px-2">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium" >Count Per Document</label>
+                            <label class="block text-sm font-medium" >Count Per Document <span class="text-red-400">*</span></label>
                             <input required type="number" id="error_count"  x-model="selectedDefect.error_count" name="error_count"
                                    class="block w-full border-gray-300 rounded-md border-2 py-2 px-2">
                         </div>
@@ -166,17 +166,17 @@
 
                     <!-- Description + Other Fields -->
                     <div>
-                        <label class="block text-sm font-medium">Issue Description</label>
+                        <label class="block text-sm font-medium">Issue Description <span class="text-red-400">*</span></label>
                         <textarea required id="issue_description" name="issue_description" x-model="selectedDefect.issue_description" rows="1"
                                   class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium">Expected Outcome</label>
+                        <label class="block text-sm font-medium">Expected Outcome (BES) <span class="text-red-400">*</span></label>
                         <textarea required id="expected_outcome" name="expected_outcome" x-model="selectedDefect.expected_outcome" rows="1"
                                   class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium">Actual Outcome</label>
+                        <label class="block text-sm font-medium">Actual Outcome (L+CP) <span class="text-red-400">*</span></label>
                         <textarea required id="actual_outcome" name="actual_outcome" x-model="selectedDefect.actual_outcome" rows="1"
                                   class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
                     </div>
@@ -227,7 +227,7 @@
                     <p class="text-gray-700"><span class="text-black font-semibold">Enactment:</span> {{ job.provision.enactment.title }}</p>
             </div>
             <div class="space-y-2">
-                <p class="text-gray-700"><span class="text-black font-semibold">Provision:</span> {{ job.provision.title }}</p>
+                <p class="text-gray-700"><span class="text-black font-semibold">Provision Ref:</span> {{ job.provision.title }}</p>
                 <p class="text-gray-700"><span class="text-black font-semibold">Date:</span> {{ job.date }}</p>
                 </div>
 

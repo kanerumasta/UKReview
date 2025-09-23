@@ -4,6 +4,7 @@ from pathlib import Path
 from os import getenv, path
 import dotenv
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -125,11 +126,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "Asia/Manila"   # or your correct zone
+USE_TZ = True
 
 USE_I18N = True
 
-USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
@@ -145,3 +146,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 if DEBUG:
     # Add django_browser_reload only in DEBUG mode
     INSTALLED_APPS += ['django_browser_reload']
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = path.join(BASE_DIR, 'media')

@@ -62,6 +62,8 @@ class ProvisionJob(models.Model):
     is_generated = models.BooleanField(default=False)
     generation_date = models.DateTimeField(null=True, blank=True)
 
+    last_edited = models.DateTimeField(auto_now=True)
+
     @property
     def total_time(self):
         from datetime import timedelta
