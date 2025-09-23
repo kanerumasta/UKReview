@@ -26,6 +26,13 @@ class DefectLog(models.Model):
     comments = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def get_absolute_url(self, request=None):
+        if self.screenshot:
+            if request:
+                return request.build_absolute_uri(self.screenshot.url)
+            return self.screenshot.url
+        return ''
+
     #Generate id
     def save(self, *args, **kwargs):
         if not self.id:

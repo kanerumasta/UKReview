@@ -19,7 +19,7 @@ def index(request):
     # Query database jobs with related objects
     jobs = ProvisionJob.objects.select_related(
         "user", "provision", "enactment_assignment__enactment"
-    ).prefetch_related("sessions")
+    ).prefetch_related("sessions").order_by('-last_edited')
 
       # --- Date Filter ---
     start_date = request.GET.get("start_date")
@@ -60,8 +60,9 @@ def index(request):
                 "employee_name": job.user.get_full_name() if job.user else None,
                 "enactment": enactment_title,   
                 "provision": job.provision.title if job.provision else None,
-                "start_time": job.start_date, 
-                "end_time": job.end_date,      
+              "start_time": job.start_date,
+                "end_time": job.end_date,
+                    
                 "time_spent": time_spent,
                 "efficiency": efficiency,
             })

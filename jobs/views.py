@@ -19,7 +19,7 @@ def jobs_index(request):
     assignment = EnactmentAssignment.objects.filter(user=request.user, status = 'active').first()
     jobs = []
     if assignment:
-        jobs = ProvisionJob.objects.filter(provision__enactment=assignment.enactment, status__in=['pending', 'active','onhold'], user=request.user)
+        jobs = ProvisionJob.objects.filter(provision__enactment=assignment.enactment, status__in=['pending', 'active','onhold'], user=request.user).order_by('-last_edited')
         for job in jobs:
             if job.status == 'active':
                 job.status = 'onhold'
@@ -95,6 +95,8 @@ def start_job(request, job_id):
                 
             if job.status != 'active':
                 session = ProvisionJobSession.objects.create(provision_job=job)
+
+       
             job.status = "active"
             job.save()
         except ProvisionJob.DoesNotExist:
@@ -182,6 +184,14 @@ def submit_job(request, job_id):
                 status__in=['pending', 'active', 'onhold']
             ).exclude(id=job.id).first()
             if next_job:
+                if next_job.start_date is None:
+                    next_job.start_date = timezone.now()
+                
+                if next_job.status != 'active':
+                    session = ProvisionJobSession.objects.create(provision_job=job)
+                    next_job.status = "active"
+               
+                next_job.save()
                 messages.success(request, "Job successfully submitted.")
                 return redirect('job_detail', job_id=next_job.id)
             else:

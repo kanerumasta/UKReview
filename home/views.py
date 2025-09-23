@@ -2,9 +2,9 @@ from django.shortcuts import render
 from jobs.models import EnactmentAssignment, ProvisionJob
 
 def home(request):
-    active_jobs_count = ProvisionJob.objects.filter(status="active").count()
-    completed_jobs_count = ProvisionJob.objects.filter(status="completed").count()
-    onhold_jobs_count = ProvisionJob.objects.filter(status="onhold").count()
+    active_jobs_count = ProvisionJob.objects.filter(status="active", user = request.user).count()
+    completed_jobs_count = ProvisionJob.objects.filter(status="completed", user = request.user).count()
+    onhold_jobs_count = ProvisionJob.objects.filter(status="onhold", user = request.user).count()
 
     # --- Total time from all jobs (in hours) ---
     total_seconds = sum(
@@ -14,7 +14,7 @@ def home(request):
     total_hours = round(total_seconds / 3600, 1)
 
     # --- Recent Jobs (last 5 by assigned date) ---
-    recent_jobs = ProvisionJob.objects.select_related("provision", "user").order_by("-date_assigned")[:5]
+    recent_jobs = ProvisionJob.objects.filter(user = request.user).select_related("provision", "user").order_by("-date_assigned")[:5]
 
     context = {
         "active_jobs_count": active_jobs_count,

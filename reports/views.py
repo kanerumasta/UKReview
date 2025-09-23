@@ -71,7 +71,7 @@ def partial_excel_report(request):
     batch = get_object_or_404(Batch, id=batch_id)
     jobs = ProvisionJob.objects.filter(provision__batch=batch)
 
-    return generate_excel_response(batch, f"Partial_Report_{batch.name}.xlsx")
+    return generate_excel_response(batch, f"Partial_Report_{batch.name}.xlsx", request)
 
 
 def full_excel_report(request):
@@ -87,7 +87,7 @@ def full_excel_report(request):
     # return generate_excel_response(jobs, f"Full_Report_{batch.name}.xlsx")
 
 
-def generate_excel_response(batch, filename):
+def generate_excel_response(batch, filename, request = None):
     jobs = ProvisionJob.objects.filter(provision__batch = batch, status = "completed")
     defects = DefectLog.objects.filter(provision_job__provision__batch=batch, provision_job__status = "completed")
     jobs_with_defects = ProvisionJob.objects.annotate(
@@ -112,8 +112,7 @@ def generate_excel_response(batch, filename):
         "Issue Description",
         "Expected Outcome(BES)",
         "Actual Outcome(L+CP)",
-
-        "Link",
+        "Screenshot/Link",
         "Count per document",
         "Logged By",
         # "Date Logged",
@@ -122,7 +121,10 @@ def generate_excel_response(batch, filename):
     ws1.append(headers)
 
     for defect in defects:
-
+        url = ''
+        if defect.screenshot:
+            if request:
+                url = defect.get_absolute_url(request)
         ws1.append([
             defect.id,
             defect.provision_job.enactment_assignment.enactment.title,
@@ -134,7 +136,7 @@ def generate_excel_response(batch, filename):
             defect.expected_outcome,
             defect.actual_outcome,
         
-            defect.link,
+            url,
             defect.error_count,
             defect.provision_job.user.email,
             # defect.created_at,
