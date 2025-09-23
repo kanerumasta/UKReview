@@ -4,10 +4,25 @@
     </ul>
     <div class="h-full">
     	{% if user.is_authenticated %}
-		    <span>{{ user.first_name }}</span>
-		      <button class="h-full text-gray-300">Logout</button>
+		<div class="flex items-center space-x-4 h-full">
+			<!-- User badge -->
+			<span class="px-3 py-1 bg-gray-600 text-gray-100 rounded-full text-sm font-medium flex items-center">
+			{{ user.first_name }}
+			</span>
+
+			<!-- Logout button -->
+			<form method="post" action="{% url 'logout' %}" class="h-full flex items-center">
+			{% csrf_token %}
+			<button type="submit"
+				class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition">
+				Logout
+			</button>
+			</form>
+		</div>
 		{% else %}
-		    <a class="text-gray-300" href="{% url 'login' %}">Login</a>
+		<a class="text-gray-300 hover:text-white transition" href="{% url 'login' %}">
+			Login
+		</a>
 		{% endif %}
     </div>
 </nav>
