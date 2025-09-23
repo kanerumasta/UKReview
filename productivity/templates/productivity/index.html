@@ -12,6 +12,18 @@
     <!-- Filter Form -->
     <form method="GET" class="flex items-center space-x-2 mb-4">
         <label for="start_date" class="font-medium">Filter by:</label>
+        
+        <!-- User dropdown -->
+     <select name="user_id" id="user_id" class="border rounded px-2 py-1">
+        <option value="">All Users</option>
+        {% for u in users %}
+            <option value="{{ u.id }}" {% if request.GET.user_id == u.id|stringformat:"s" %}selected{% endif %}>
+                {{ u.username }}
+            </option>
+        {% endfor %}
+    </select>
+
+
         <input type="date" name="start_date" id="start_date" value="{{ request.GET.start_date }}" class="border rounded px-2 py-1">
         <input type="date" name="end_date" id="end_date" value="{{ request.GET.end_date }}" class="border rounded px-2 py-1">
         <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded">Search</button>

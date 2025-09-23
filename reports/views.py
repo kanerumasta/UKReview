@@ -19,8 +19,11 @@ def reports_view(request):
         selected_batch = batches.first()  # ✅ default to latest batch
 
     enactments = Enactment.objects.filter(batch=selected_batch) if selected_batch else Enactment.objects.none()
-    defects = DefectLog.objects.filter(provision_job__provision__batch=selected_batch) if selected_batch else DefectLog.objects.none()
-
+    defects = (
+        DefectLog.objects.filter(provision_job__provision__batch=selected_batch).order_by("id")
+        if selected_batch
+        else DefectLog.objects.none()
+    )
     # Summary
     category_summary = {}
     for defect in defects:
