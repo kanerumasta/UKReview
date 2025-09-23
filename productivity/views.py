@@ -27,13 +27,7 @@ def index(request):
     end_date = request.GET.get("end_date")
     user_id = request.GET.get("user_id")
 
-    if start_date and end_date:
-        try:
-            start = datetime.strptime(start_date, "%Y-%m-%d").date()
-            end = datetime.strptime(end_date, "%Y-%m-%d").date()
-            jobs = jobs.filter(date_assigned__range=[start, end])  # ✅ filter on queryset
-        except Exception as e:
-            print("Date filter error:", e)
+    
 
     # --- User filter ---
     if user_id:
@@ -87,6 +81,14 @@ def index(request):
             or (row["time_spent"] and query_lower in str(row["time_spent"]).lower())
             or (row["efficiency"] and query_lower in str(row["efficiency"]).lower())
         ]
+    
+    if start_date and end_date:
+        try:
+            start = datetime.strptime(start_date, "%Y-%m-%d").date()
+            end = datetime.strptime(end_date, "%Y-%m-%d").date()
+            jobs = jobs.filter(date_assigned__range=[start, end])  # ✅ filter on queryset
+        except Exception as e:
+            print("Date filter error:", e)
 
     # --- Pagination ---
     paginator = Paginator(productivity_data, 10)

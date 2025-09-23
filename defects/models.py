@@ -1,6 +1,21 @@
 from django.db import models
 from enactments.models import Enactment, Provision
 from jobs.models import ProvisionJob
+import os
+from django.utils.timezone import now
+
+
+def defect_log_screenshot_path(instance, filename):
+    ext = filename.split('.')[-1]
+
+    provision_name = (
+        f"{instance.provision_job.provision.enactment.title}_"
+        f"{instance.provision_job.provision.title}_"
+        f"{instance.provision_job.date.strftime('%Y%m%d')}"
+    )
+
+    new_filename = f"{provision_name}.{ext}"
+    return os.path.join("defect_log_screenshots", new_filename)
 
 class DefectLog(models.Model):
     CATEGORY_CHOICES = [
@@ -20,7 +35,7 @@ class DefectLog(models.Model):
     issue_description = models.TextField()
     expected_outcome = models.CharField(max_length=255)
     actual_outcome = models.CharField(max_length=255)
-    screenshot = models.ImageField(upload_to='defect_log_screenshots/')
+    screenshot = models.ImageField(upload_to=defect_log_screenshot_path)
     link = models.URLField(max_length=500, blank=True, null=True, help_text="Option reference link")
     error_count = models.PositiveIntegerField()
     comments = models.TextField()

@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'defects',
     'settings',
     'reports',
+    'allocations',
 
 
 ]

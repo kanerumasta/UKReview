@@ -66,7 +66,7 @@
       <thead class="bg-gray-100">
         <tr>
           <th class="px-4 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Name</th>
-          <th class="px-4 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Options</th>
+          <th class="px-4 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Options - Severity</th>
           <th class="px-4 py-2 text-center font-medium text-gray-700 uppercase tracking-wider">Actions</th>
         </tr>
       </thead>
@@ -80,7 +80,7 @@
               <li class="flex items-center gap-2">
                 <span>{{ option.check_type }}</span>
                 <!-- Severity Badge -->
-                <span class="{% if option.severity_level == 'High' %}bg-red-500{% elif option.severity_level == 'Medium' %}bg-yellow-400{% else %}bg-gray-400{% endif %} text-white text-xs font-semibold px-2 py-0.5 rounded">
+                <span class="{% if option.severity_level == 4 %}bg-red-500{% elif option.severity_level == 3 %}bg-orange-400{% elif option.severity_level == 2 %}bg-yellow-400{% else %}bg-blue-400{% endif %} text-white text-xs font-semibold px-2 py-0.5 rounded">
                   {{ option.severity_level }}
                 </span>
               </li>

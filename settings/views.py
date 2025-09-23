@@ -13,7 +13,8 @@ def index(request):
     settings = JobSettings.objects.first()
     context = {
         "categories":categories,
-        "settings":settings
+        "settings":settings,
+        "active_page":"settings"
     }
     return render(request, "settings/index.html", context=context)
 

@@ -7,7 +7,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from django.db.models import Count, Sum
 from openpyxl.utils import get_column_letter, range_boundaries
- 
+from django.utils import timezone 
 from django.core.paginator import Paginator
 from django.db.models import Q
  
@@ -24,7 +24,8 @@ def reports_view(request):
  
     defects = DefectLog.objects.filter(
         provision_job__provision__batch=selected_batch,
-        provision_job__status="completed"
+        provision_job__status="completed",
+        provision_job__is_generated = False
     ).order_by("id") if selected_batch else DefectLog.objects.none()
  
     # Apply search
@@ -61,6 +62,7 @@ def reports_view(request):
         "category_summary": category_summary,
         "search_query": search_query,
         "severity_filter": severity_filter,
+        "active_page":"reports"
     }
     return render(request, "reports/index.html", context)
  
@@ -88,16 +90,15 @@ def full_excel_report(request):
 
 
 def generate_excel_response(batch, filename, request = None):
-    jobs = ProvisionJob.objects.filter(provision__batch = batch, status = "completed")
-    defects = DefectLog.objects.filter(provision_job__provision__batch=batch, provision_job__status = "completed")
-    jobs_with_defects = ProvisionJob.objects.annotate(
+    jobs = ProvisionJob.objects.filter(provision__batch = batch, status = "completed", is_generated=False).order_by("id")
+    defects = DefectLog.objects.filter(provision_job__provision__batch=batch, provision_job__status = "completed", provision_job__is_generated = False).order_by("id")
+    jobs_with_defects = jobs.annotate(
         defect_count=Count('defect_logs')
-    ).filter(defect_count__gt=0)
+    ).filter(defect_count__gt=0).order_by("id")
  
     wb = Workbook()
     ws1 = wb.active
     ws1.title = "Defect Log"
- 
  
  
  
@@ -187,6 +188,8 @@ def generate_excel_response(batch, filename, request = None):
     ws2["J2"].fill = PatternFill(start_color="d5dce2", end_color="d5dce2", fill_type="solid")
     ws2["J3"] = "3"
     ws2["K3"] = "4"
+    ws2["J3"].fill = PatternFill(start_color="d9e2f3", end_color="d9e2f3", fill_type="solid")
+    ws2["K3"].fill = PatternFill(start_color="d9e2f3", end_color="d9e2f3", fill_type="solid")
  
     ws2["F3"].fill = PatternFill(start_color="d5dce2", end_color="d5dce2", fill_type="solid")
     ws2["G3"].fill = PatternFill(start_color="d5dce2", end_color="d5dce2", fill_type="solid")
@@ -218,7 +221,10 @@ def generate_excel_response(batch, filename, request = None):
     job_rating2_count = jobs.filter(document_rating=2).count()
     job_rating3_count = jobs.filter(document_rating=3).count()
  
-    block_ranges = ["B2:I3",]
+    block_ranges = ["B2:E3","F2:I3","J2:K3"]
+
+    
+    thinn_bottom = Side(style="double", color="000000")
  
     for category in defect_categories:
         error_count_value = defects.filter(category=category).count()
@@ -226,6 +232,29 @@ def generate_excel_response(batch, filename, request = None):
         ws2.cell(row=current_row, column=4, value=int(error_count_value))
  
         category_rows.append(current_row)  # remember this row
+
+        #change to bold
+        for row in ws2[f"B{current_row}:K{current_row}"]:
+            for cell in row:
+                cell.font = Font(name="Times New Roman",size=12, bold=True)
+
+                # preserve existing border
+                current_border = cell.border
+
+                cell.border = Border(
+                    left=current_border.left,
+                    right=current_border.right,
+                    top=current_border.top,
+                    bottom=thinn_bottom
+                )
+
+
+
+        
+
+        block_cell = f"B{current_row}:"
+        block_cell2 = f"F{current_row}:"
+        block_cell3 = f"J{current_row}:"
  
        
  
@@ -233,11 +262,14 @@ def generate_excel_response(batch, filename, request = None):
         options = category.options.all()
  
         for option in options:
+
             defects_options = defects.filter(check_type=option.check_type)
             option_count = defects_options.count()
  
             ws2.cell(row=current_row, column=3, value=option.check_type)
             ws2.cell(row=current_row, column=4, value=option_count)
+
+
             ws2.cell(row=current_row, column=6, value=defects_options.filter(severity_level = 1).count())
             ws2.cell(row=current_row, column=7, value=defects_options.filter(severity_level = 2).count())
             ws2.cell(row=current_row, column=8, value=defects_options.filter(severity_level = 3).count())
@@ -252,6 +284,13 @@ def generate_excel_response(batch, filename, request = None):
  
             current_row += 1
         current_row += 1
+        block_cell += f"E{current_row}"
+        block_cell2 += f"I{current_row}"
+        block_cell3 += f"K{current_row}"
+        block_ranges.append(block_cell)
+        block_ranges.append(block_cell2)
+        block_ranges.append(block_cell3)
+
  
     #Severity Table
     ws2["M10"] = "Severity"
@@ -349,31 +388,232 @@ def generate_excel_response(batch, filename, request = None):
  
  
     autofit_columns(ws1)
-    autofit_columns(ws2)
+    # autofit_columns(ws2)
  
     #STYLING
-    add_outer_border(ws2, "B2:I3", border_style="thick", color="000000")
+    for block in block_ranges:
+        add_outer_border(ws2, block, border_style="thick", color="000000")
  
  
- 
- 
- 
- 
-   
-   
- 
- 
- 
- 
- 
-   
- 
- 
- 
+    #summary sheet
+    ws3 = wb.create_sheet("Enactments")
+    headers = [
+        "Filename",
+        "Enactment Citation",
+        "Provision",
+        "Date \n (dd/mm/yyyy)",
+        "Document rating",
+        "Review Outcome",
+        "Remarks"
+    ]
+    ws3.append(headers)
+    for job in jobs:
+        ws3.append([
+            job.filename,
+            job.enactment_assignment.enactment.title,
+            job.provision.title,
+            job.date,
+            job.document_rating,
+            "Defect Found DUmmyt",
+            job.remarks
+        ])
+
+    #apply style
+    for row in ws3[f"A1:H1"]:
+            for cell in row:
+                cell.font = Font(size=12, bold=True)
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    ws4 = wb.create_sheet("Error Type Highlights")
+    ws4.merge_cells('B2:M4')
+    ws4['B2'] = ">5 occurrences of the same Sev 3 issue in one document"
+    ws4['B2'].alignment = Alignment(horizontal='left', vertical='center')
+
+    table_headers = [
+        "Defect ID",
+        "Enactment Citation",
+        "Provision Ref(s)",
+        "Version Date",
+        "Category",
+        "Check Type",
+        "Issue Description",
+        "Expected Outcome (BES)",
+        "Actual Outcome (L+CP)",
+        "Screenshot / Link",
+        "Severity",
+        "Count per document"
+    ]
+
+
+    header_row = 5  # since merged block ends at row 4
+    for col_index, header in enumerate(table_headers, start=2):  # B=2
+        cell = ws4.cell(row=header_row, column=col_index, value=header)
+        cell.font = Font(name="Times New Roman", bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.fill = PatternFill(start_color="D5DCE2", end_color="D5DCE2", fill_type="solid")
+
+
+    #>5 error count of the same Sev 3 issue in one document
+    greater_five_severity3_defects = defects.filter(severity_level=3, error_count__gt=5)
+    data_start_row = header_row + 1
+    for i, defect in enumerate(greater_five_severity3_defects):
+        row_index = data_start_row + i
+        ws4.cell(row=row_index, column=2, value=defect.id)
+        ws4.cell(row=row_index, column=3, value=defect.provision_job.provision.enactment.title)
+        ws4.cell(row=row_index, column=4, value=defect.provision_job.provision.title)
+        ws4.cell(row=row_index, column=5, value=defect.provision_job.date)
+        ws4.cell(row=row_index, column=6, value=defect.category)
+        ws4.cell(row=row_index, column=7, value=defect.check_type)
+        ws4.cell(row=row_index, column=8, value=defect.issue_description)
+        ws4.cell(row=row_index, column=9, value=defect.expected_outcome)
+        ws4.cell(row=row_index, column=10, value=defect.actual_outcome)
+        ws4.cell(row=row_index, column=11, value=defect.get_absolute_url(request))
+        ws4.cell(row=row_index, column=12, value=defect.severity_level)
+        ws4.cell(row=row_index, column=13, value=defect.error_count)
+
+    # Define thin and thick sides
+    thin_side = Side(border_style="thin", color="000000")
+    thick_side = Side(border_style="thick", color="000000")
+
+    # Determine the full block range
+    start_row = 2
+    end_row = data_start_row + len(greater_five_severity3_defects) - 1
+    start_col = 2  # B
+    end_col = 13   # M
+
+    # Apply thick outer border
+    for row in range(start_row, end_row + 1):
+        for col in range(start_col, end_col + 1):
+            cell = ws4.cell(row=row, column=col)
+            left   = thick_side if col == start_col else None
+            right  = thick_side if col == end_col else None
+            top    = thick_side if row == start_row else None
+            bottom = thick_side if row == end_row else None
+            current = cell.border
+            cell.border = Border(
+                left=left or current.left,
+                right=right or current.right,
+                top=top or current.top,
+                bottom=bottom or current.bottom
+            )
+
+    # Apply thin inner borders (title + headers + data)
+    for row in range(start_row, end_row + 1):
+        for col in range(start_col, end_col + 1):
+            cell = ws4.cell(row=row, column=col)
+            current = cell.border
+            cell.border = Border(
+                left=current.left or thin_side,
+                right=current.right or thin_side,
+                top=current.top or thin_side,
+                bottom=current.bottom or thin_side
+            )
+
+    # ========================
+    # SECOND TABLE (Sev 4 > 10)
+    # ========================
+
+    # Skip 1 row after first table
+    second_title_row = end_row + 2
+    second_header_row = second_title_row + 3
+
+    ws4.merge_cells(start_row=second_title_row, start_column=2, end_row=second_title_row+2, end_column=13)
+    ws4.cell(row=second_title_row, column=2, value=">10 occurrences of the same Sev 4 issue in one document").alignment = Alignment(horizontal='left', vertical='center')
+
+    # Headers
+    for col_index, header in enumerate(table_headers, start=2):
+        cell = ws4.cell(row=second_header_row, column=col_index, value=header)
+        cell.font = Font(name="Times New Roman", bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.fill = PatternFill(start_color="D5DCE2", end_color="D5DCE2", fill_type="solid")
+
+    greater_10_severity4_defects = defects.filter(severity_level=4, error_count__gt=10)
+
+    data_start_row_2 = second_header_row + 1
+    for i, defect in enumerate(greater_10_severity4_defects):
+        row_index = data_start_row_2 + i
+        ws4.cell(row=row_index, column=2, value=defect.id)
+        ws4.cell(row=row_index, column=3, value=defect.provision_job.provision.enactment.title)
+        ws4.cell(row=row_index, column=4, value=defect.provision_job.provision.title)
+        ws4.cell(row=row_index, column=5, value=defect.provision_job.date)
+        ws4.cell(row=row_index, column=6, value=defect.category)
+        ws4.cell(row=row_index, column=7, value=defect.check_type)
+        ws4.cell(row=row_index, column=8, value=defect.issue_description)
+        ws4.cell(row=row_index, column=9, value=defect.expected_outcome)
+        ws4.cell(row=row_index, column=10, value=defect.actual_outcome)
+        ws4.cell(row=row_index, column=11, value=defect.get_absolute_url(request))
+        ws4.cell(row=row_index, column=12, value=defect.severity_level)
+        ws4.cell(row=row_index, column=13, value=defect.error_count)
+
+    # Borders for table 2
+    start_row_2 = second_title_row
+    end_row_2 = data_start_row_2 + len(greater_10_severity4_defects) - 1
+
+    for row in range(start_row_2, end_row_2 + 1):
+        for col in range(start_col, end_col + 1):
+            cell = ws4.cell(row=row, column=col)
+            left   = thick_side if col == start_col else None
+            right  = thick_side if col == end_col else None
+            top    = thick_side if row == start_row_2 else None
+            bottom = thick_side if row == end_row_2 else None
+            current = cell.border
+            cell.border = Border(
+                left=left or current.left,
+                right=right or current.right,
+                top=top or current.top,
+                bottom=bottom or current.bottom
+            )
+
+    for row in range(start_row_2, end_row_2 + 1):
+        for col in range(start_col, end_col + 1):
+            cell = ws4.cell(row=row, column=col)
+            current = cell.border
+            cell.border = Border(
+                left=current.left or thin_side,
+                right=current.right or thin_side,
+                top=current.top or thin_side,
+                bottom=current.bottom or thin_side
+            )
+
+    ws4.sheet_view.showGridLines = False
+
+    
+
+
+
+    for ws in wb.worksheets:
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value is not None:
+                    current = cell.font
+                    cell.font = Font(
+                        name="Times New Roman",
+                        size=current.size if current.size else 12,
+                        bold=current.bold,
+                        italic=current.italic,
+                        underline=current.underline,
+                        strike=current.strike,
+                        color=current.color
+                    )
     # Response
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
+
+    autofit_columns(ws1)
+    autofit_columns(ws3)
+    autofit_columns(ws4)
+
+
+    #set jobs generated
+    for job in jobs:
+        job.is_generated = True
+        job.generation_date = timezone.now()
+        job.save()
+
+
+    
+
     return response
  
  
@@ -389,11 +629,11 @@ def autofit_columns(ws):
             if cell.value:
                 max_length = max(max_length, len(str(cell.value)))
         ws.column_dimensions[column_letter].width = max_length + 2
- 
+
 def add_outer_border(ws, cell_range, border_style="thin", color="000000"):
     """
-    Apply an outer border around a range (like a rectangle).
-   
+    Apply an outer border around a range (like a rectangle) without overriding existing borders.
+    
     :param ws: Worksheet
     :param cell_range: Excel range string (e.g., "B2:I3")
     :param border_style: Border style (default "thin")
@@ -401,14 +641,19 @@ def add_outer_border(ws, cell_range, border_style="thin", color="000000"):
     """
     side = Side(border_style=border_style, color=color)
     min_col, min_row, max_col, max_row = range_boundaries(cell_range)
- 
+
     for row in range(min_row, max_row + 1):
         for col in range(min_col, max_col + 1):
             cell = ws.cell(row=row, column=col)
- 
-            left   = side if col == min_col else None
-            right  = side if col == max_col else None
-            top    = side if row == min_row else None
-            bottom = side if row == max_row else None
- 
+            
+            # Get the current border of the cell
+            current = cell.border
+
+            # Only override sides if we are on the edge
+            left   = side if col == min_col else current.left
+            right  = side if col == max_col else current.right
+            top    = side if row == min_row else current.top
+            bottom = side if row == max_row else current.bottom
+
+            # Reassign border while preserving non-edge sides
             cell.border = Border(left=left, right=right, top=top, bottom=bottom)

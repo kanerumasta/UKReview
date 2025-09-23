@@ -16,20 +16,20 @@ from settings.models import JobSettings
 
 
 def jobs_index(request):
-    assignment = EnactmentAssignment.objects.filter(user=request.user, status = 'active').first()
+    # assignment = EnactmentAssignment.objects.filter(user=request.user, status = 'active').first()
     jobs = []
-    if assignment:
-        jobs = ProvisionJob.objects.filter(provision__enactment=assignment.enactment, status__in=['pending', 'active','onhold'], user=request.user).order_by('-last_edited')
-        for job in jobs:
-            if job.status == 'active':
-                job.status = 'onhold'
-                sessions = ProvisionJobSession.objects.filter(provision_job = job,ended_at=None)
-                for session in sessions:
-                    session.ended_at = timezone.now()
-                    session.save()
-                job.save()
+    # if assignment:
+    jobs = ProvisionJob.objects.filter( status__in=['pending', 'active','onhold'], user=request.user).order_by('-last_edited')
+    for job in jobs:
+        if job.status == 'active':
+            job.status = 'onhold'
+            sessions = ProvisionJobSession.objects.filter(provision_job = job,ended_at=None)
+            for session in sessions:
+                session.ended_at = timezone.now()
+                session.save()
+            job.save()
     context = {
-        'active_page': 'allocations',
+        'active_page': 'jobs',
         'jobs': jobs,
     }
  
