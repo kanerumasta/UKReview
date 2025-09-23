@@ -38,48 +38,46 @@ def jobs_index(request):
 
 
 
-
 def allocate_enactment(request):
-    if request.method == "POST":
-        # Find the first enactment that still has pending provision jobs
-        pending_jobs = ProvisionJob.objects.filter(
-            provision__enactment=OuterRef('pk'),
-            status='pending'
-        )
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method."}, status=400)
 
-        enactment = Enactment.objects.annotate(
-            has_pending_jobs=Exists(pending_jobs)
-        ).filter(has_pending_jobs=True).first()
+    # Find the first enactment with unassigned pending jobs
+    enactment = Enactment.objects.filter(
+        provisions__jobs__status='pending',
+        provisions__jobs__user__isnull=True
+    ).distinct().first()
 
-        if not enactment:
-            return JsonResponse({"error": "No enactments with pending jobs available."}, status=400)
+    print(enactment)
 
-        # Create a new EnactmentAssignment
-        assignment = EnactmentAssignment.objects.create(
-            enactment=enactment,
-            user=request.user,
-        )
+    if not enactment:
+        return JsonResponse({"error": "No enactments with pending jobs available."}, status=400)
 
-        # Assign only up to 10 unassigned, pending jobs
-        max_job_count = 100
-        settings = JobSettings.objects.first()
-        if settings:
-            max_job_count = settings.max_job_count
-        job_ids = ProvisionJob.objects.filter(
-            provision__enactment=enactment,
-            status='pending',
-            user__isnull=True,
-            enactment_assignment__isnull=True
-        ).values_list('id', flat=True)[:max_job_count]
+    # Create assignment
+    assignment = EnactmentAssignment.objects.create(
+        enactment=enactment,
+        user=request.user,
+    )
 
-        ProvisionJob.objects.filter(id__in=job_ids).update(
-            user=request.user,
-            enactment_assignment=assignment
-        )
+    # Get max jobs per settings
+    max_job_count = JobSettings.objects.first().max_job_count if JobSettings.objects.exists() else 100
 
-        return redirect("jobs")
+    # Assign jobs
+    job_ids = ProvisionJob.objects.filter(
+        provision__enactment=enactment,
+        status='pending',
+        user__isnull=True,
+        enactment_assignment__isnull=True
+    ).values_list('id', flat=True)[:max_job_count]
+    print(job_ids)
 
-    return JsonResponse({"error": "Invalid request method."}, status=400)
+    ProvisionJob.objects.filter(id__in=job_ids).update(
+        user=request.user,
+        enactment_assignment=assignment
+    )
+
+    return redirect("jobs")
+
 
 @csrf_exempt
 def start_job(request, job_id):

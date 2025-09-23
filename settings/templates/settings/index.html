@@ -1,5 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
+
+{% if messages %}
+<div id="message-container" class="w-full px-6 mt-6">
+    {% for message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-black
+                {% if message.tags == 'error' %}bg-red-300{% endif %}
+                {% if message.tags == 'success' %}bg-green-300{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    // Auto-hide messages after 3 seconds (3000ms)
+    setTimeout(() => {
+        const container = document.getElementById('message-container');
+        if (container) {
+            container.style.transition = "opacity 0.5s";
+            container.style.opacity = 0;
+            setTimeout(() => container.remove(), 500); // remove after fade out
+        }
+    }, 3000);
+</script>
+{% endif %}
 <div class="p-6 mx-auto" x-data="{ jobCountEditMode: false }">
   
   <!-- Page Title -->
@@ -77,4 +101,22 @@
     </table>
   </div>
 </div>
+
+<style>
+    /* Loader animation */
+    .loader {
+        border-width: 4px;
+    }
+@keyframes progressBar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress {
+  width: 50%;
+  animation: progressBar 1.5s linear infinite;
+}
+</style>
 {% endblock %}
+
+

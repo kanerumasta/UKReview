@@ -4,9 +4,10 @@ from jobs.models import ProvisionJob
 from defects.models import DefectLog, DefectCategory
 from django.http import HttpResponse
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Border
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from django.db.models import Count, Sum
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, range_boundaries
+
 
 def reports_view(request):
     batches = Batch.objects.all().order_by("-created_at")  # newest first
@@ -67,6 +68,9 @@ def generate_excel_response(batch, filename):
     wb = Workbook()
     ws1 = wb.active
     ws1.title = "Defect Log"
+
+ 
+
 
     # Header
     headers = [
@@ -145,6 +149,14 @@ def generate_excel_response(batch, filename):
     ws2["G3"] = "2"
     ws2["H3"] = "3"
     ws2["I3"] = "4"
+
+    ws2.merge_cells('J2:K2')
+    ws2["J2"] = "‘repeated issue’ trigger thresholds"
+    ws2["J2"].alignment = Alignment(horizontal='center', vertical='center')
+    ws2["J2"].fill = PatternFill(start_color="d5dce2", end_color="d5dce2", fill_type="solid")
+    ws2["J3"] = "3"
+    ws2["K3"] = "4"
+
     ws2["F3"].fill = PatternFill(start_color="d5dce2", end_color="d5dce2", fill_type="solid")
     ws2["G3"].fill = PatternFill(start_color="d5dce2", end_color="d5dce2", fill_type="solid")
     ws2["H3"].fill = PatternFill(start_color="d5dce2", end_color="d5dce2", fill_type="solid")
@@ -158,18 +170,6 @@ def generate_excel_response(batch, filename):
     ws2["O7"] = jobs.count()
     ws2["O4"] = "=(O6/O7)"
     ws2["O4"].number_format = '0.00%'
-
-
-
-
-
-
-    
-
-
-
-    
-    
 
 
 
@@ -187,12 +187,16 @@ def generate_excel_response(batch, filename):
     job_rating2_count = jobs.filter(document_rating=2).count()
     job_rating3_count = jobs.filter(document_rating=3).count()
 
+    block_ranges = ["B2:I3",]
+
     for category in defect_categories:
         error_count_value = defects.filter(category=category).count()
         ws2.cell(row=current_row, column=2, value=category.name)
         ws2.cell(row=current_row, column=4, value=int(error_count_value))
 
         category_rows.append(current_row)  # remember this row
+
+        
 
         current_row += 1
         options = category.options.all()
@@ -207,6 +211,13 @@ def generate_excel_response(batch, filename):
             ws2.cell(row=current_row, column=7, value=defects_options.filter(severity_level = 2).count())
             ws2.cell(row=current_row, column=8, value=defects_options.filter(severity_level = 3).count())
             ws2.cell(row=current_row, column=9, value=defects_options.filter(severity_level = 4).count())
+
+            ws2.cell(row=current_row, column=10, value=f"=(H{current_row}/O7)")
+            ws2.cell(row=current_row, column=11, value=f"=(I{current_row}/O7)")
+            ws2[f"J{current_row}"].number_format = "0.00%"
+            ws2[f"K{current_row}"].number_format = "0.00%"
+
+
 
             current_row += 1
         current_row += 1
@@ -293,7 +304,10 @@ def generate_excel_response(batch, filename):
     # Write TOTAL at the bottom
     total_row = current_row
     ws2.cell(row=total_row, column=2, value="TOTAL ERRORS")
-    ws2.cell(row=total_row, column=4, value=f"=SUM(D4:D{total_row-1})")
+
+    # Build SUM formula only for category rows
+    sum_formula = "+".join([f"D{row}" for row in category_rows])
+    ws2.cell(row=total_row, column=4, value=f"={sum_formula}")
 
     # Now go back and insert formulas referencing the total cell
     for row in category_rows:
@@ -305,6 +319,9 @@ def generate_excel_response(batch, filename):
 
     autofit_columns(ws1)
     autofit_columns(ws2)
+
+    #STYLING
+    add_outer_border(ws2, "B2:I3", border_style="thick", color="000000")
 
 
 
@@ -341,3 +358,26 @@ def autofit_columns(ws):
             if cell.value:
                 max_length = max(max_length, len(str(cell.value)))
         ws.column_dimensions[column_letter].width = max_length + 2
+
+def add_outer_border(ws, cell_range, border_style="thin", color="000000"):
+    """
+    Apply an outer border around a range (like a rectangle).
+    
+    :param ws: Worksheet
+    :param cell_range: Excel range string (e.g., "B2:I3")
+    :param border_style: Border style (default "thin")
+    :param color: Border color (default black)
+    """
+    side = Side(border_style=border_style, color=color)
+    min_col, min_row, max_col, max_row = range_boundaries(cell_range)
+
+    for row in range(min_row, max_row + 1):
+        for col in range(min_col, max_col + 1):
+            cell = ws.cell(row=row, column=col)
+
+            left   = side if col == min_col else None
+            right  = side if col == max_col else None
+            top    = side if row == min_row else None
+            bottom = side if row == max_row else None
+
+            cell.border = Border(left=left, right=right, top=top, bottom=bottom)
