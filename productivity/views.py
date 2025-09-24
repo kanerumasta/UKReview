@@ -12,12 +12,6 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-# Function to generate a random date
-def random_date(start, end):
-    delta = end - start
-    random_days = random.randint(0, delta.days)
-    return (start + timedelta(days=random_days)).date()  # only date, no time
-
 
 
 def index(request):
@@ -43,8 +37,6 @@ def index(request):
         end = datetime.strptime(end_date, "%Y-%m-%d").date()
         jobs = jobs.filter(date_assigned__date__lte=end)
 
-
-  
 
     # --- User filter ---
     if user_id:
@@ -72,9 +64,8 @@ def index(request):
                 "employee_name": job.user.get_full_name() if job.user else '',
                 "enactment": enactment_title,
                 "provision": job.provision.title if job.provision else '',
-              "start_time": job.start_date,
+                "start_time": job.start_date,
                 "end_time": job.end_date,
-                    
                 "time_spent": time_spent,
                 "efficiency": efficiency,
             })
@@ -99,13 +90,7 @@ def index(request):
             or (row["efficiency"] and query_lower in str(row["efficiency"]).lower())
         ]
     
-    if start_date and end_date:
-        try:
-            start = datetime.strptime(start_date, "%Y-%m-%d").date()
-            end = datetime.strptime(end_date, "%Y-%m-%d").date()
-            jobs = jobs.filter(date_assigned__range=[start, end])  # ✅ filter on queryset
-        except Exception as e:
-            print("Date filter error:", e)
+   
 
     # --- Pagination ---
     paginator = Paginator(productivity_data, 10)
@@ -164,15 +149,15 @@ def export_to_excel(request):
         # --- Create workbook ---
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Productivity Report"
+        ws.title = "User Productivity Report"
 
         # --- Header row ---
         headers = [
             'Date Assigned',
             'User ID',
-            'Employee Name',
+            'User Name',
             'Enactment',
-            'Provision',
+            'Provision Ref(s)',
             'Start Date',
             'End Date',
             'Time Spent (hrs)',
@@ -222,7 +207,7 @@ def export_to_excel(request):
 
         # --- Dynamic filename ---
         now = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"productivity_report_{now}.xlsx"
+        filename = f"user_productivity_report_{now}.xlsx"
 
         response = HttpResponse(
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

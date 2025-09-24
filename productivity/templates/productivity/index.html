@@ -36,19 +36,25 @@
     
     </form>
 
-    <!-- Search Form aligned to Efficiency column -->
-    <div class="flex justify-end pr-4 mb-2">
-        <form method="GET" class="flex items-center space-x-2">
-            <input type="text" name="q" value="{{ request.GET.q }}"
-                placeholder="Search..."
-                class="border rounded px-2 py-1 w-64">
-            <button type="submit"
-                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded">
-                Search
-            </button>
-        </form>
-    </div>
+        <!-- Search Form aligned to Efficiency column -->
+        <div class="flex justify-end pr-4 mb-2">
+            <form method="GET" class="flex items-center space-x-2" id="searchForm">
+                <input type="text" name="q" value="{{ request.GET.q }}"
+                    placeholder="Search..."
+                    class="border rounded px-2 py-1 w-64"
+                    id="searchInput">
+            </form>
+        </div>
 
+        <script>
+        let debounceTimer;
+        document.getElementById("searchInput").addEventListener("input", function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                document.getElementById("searchForm").submit();
+            }, 500); // 500ms delay after typing stops
+        });
+        </script>
     
 
     <!-- Table -->
@@ -90,62 +96,6 @@
             </tbody>
         </table>
     </div>
-<button onclick="exportTableToExcel()">Export to CSV</button>
-    <script>
-function exportTableToExcel() {
-    try {
-        const table = document.querySelector("table");
-
-        // Convert table to JSON first (to keep exact text, e.g., "200%")
-        let data = [];
-        table.querySelectorAll("tr").forEach((row, i) => {
-            let rowData = [];
-            row.querySelectorAll("th, td").forEach(cell => {
-                rowData.push(cell.innerText.trim());
-            });
-            data.push(rowData);
-        });
-
-        // Create worksheet from JSON
-        let ws = XLSX.utils.aoa_to_sheet(data);
-
-        // Apply auto-fit column widths
-        let colWidths = data[0].map((_, colIndex) => {
-            let maxWidth = 10;
-            data.forEach(row => {
-                if (row[colIndex]) {
-                    let len = row[colIndex].toString().length;
-                    if (len > maxWidth) maxWidth = len;
-                }
-            });
-            return { wch: maxWidth + 2 };
-        });
-        ws['!cols'] = colWidths;
-
-        // Create workbook
-        let wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Report");
-
-        // Dynamic filename: productivity_report_YYYYMMDD_HHMMSS.xlsx
-        let now = new Date();
-        let yyyy = now.getFullYear();
-        let mm = String(now.getMonth() + 1).padStart(2, "0");
-        let dd = String(now.getDate()).padStart(2, "0");
-        let hh = String(now.getHours()).padStart(2, "0");
-        let mi = String(now.getMinutes()).padStart(2, "0");
-        let ss = String(now.getSeconds()).padStart(2, "0");
-
-        let filename = `productivity_report_${yyyy}${mm}${dd}_${hh}${mi}${ss}.xlsx`;
-
-        // Save Excel file
-        XLSX.writeFile(wb, filename);
-
-    } catch (error) {
-        console.error("Export failed:", error);
-        alert("Something went wrong while exporting.");
-    }
-}
-</script>
 
     <!-- Pagination -->
         <div class="mt-4 flex justify-center space-x-2">
