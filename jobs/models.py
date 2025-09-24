@@ -52,8 +52,8 @@ class ProvisionJob(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
 
-    document_rating = models.PositiveSmallIntegerField(default=0,null=True, blank=True)
-    review_outcome = models.CharField(max_length=255, null=True, blank=True)
+    document_rating = models.PositiveSmallIntegerField(default=3,null=True, blank=True)
+    # review_outcome = models.CharField(max_length=255, null=True, blank=True)
     remarks = models.TextField(null=True, blank=True)
 
     start_date = models.DateTimeField(null=True, blank=True)

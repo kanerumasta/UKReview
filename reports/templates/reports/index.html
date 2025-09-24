@@ -8,9 +8,10 @@
     Reports
   </h2>
 
-  <div>
+  <div class="flex items-center justify-between">
+
   <!-- Batch Selector -->
-  <form method="get" class="mb-6 flex items-center gap-4">
+  <form method="get" class="flex items-center gap-4">
     <label for="batch" class="text-sm font-medium text-gray-700">Select Batch:</label>
     <select id="batch" name="batch" 
       onchange="this.form.submit()" 
@@ -26,12 +27,12 @@
   <!-- Export Buttons -->
   <div class="my-6 flex gap-3">
     <a href="{% url 'partial_excel_report' %}?batch={{ selected_batch.id }}"
-      class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded-md shadow">
+      class="px-4 py-2 bg-blue-400 hover:bg-blue-500 text-black  text-lg rounded-md shadow">
       <i class="bi bi-file-earmark-spreadsheet mr-1"></i>
       Generate Partial Report
     </a>
    <a href="{% url 'full_excel_report' %}?batch={{ selected_batch.id }}"
-   class="px-4 py-2 text-white text-sm rounded-md shadow
+   class="px-4 py-2 text-white text-lg rounded-md shadow
           {% if selected_batch.all_jobs_completed %}
           bg-green-600 hover:bg-green-700
              
@@ -42,6 +43,7 @@
    Generate Full Report
 </a>
   </div>
+
   </div>
  
 
@@ -71,7 +73,7 @@
       <!-- Defects Tab -->
       <div x-show="tab === 'defects'">
               <h3 class="text-lg font-semibold mb-4 text-gray-800">Defects</h3>
-              <form method="get" class="mb-4  flex gap-2 items-center justify-end">
+              <form method="get" class="mb-4  flex gap-2 items-center">
           <input type="hidden" name="batch" value="{{ selected_batch.id }}">
           
           <input type="text" name="search" placeholder="Search defects..."
@@ -111,8 +113,8 @@
                 <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Logged By</th>
                 <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Date Logged</th>
                 <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Comments</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Screenshot</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Link</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Screenshot / Link</th>
+                
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-100">
@@ -132,8 +134,14 @@
                 <td class="px-3 py-2">{{ defect.provision_job.user.email }}</td>
                 <td class="px-3 py-2 whitespace-nowrap">{{ defect.created_at }}</td>
                 <td class="px-3 py-2">{{ defect.comments }}</td>
-                <td class="px-3 py-2">{{ defect.screenshot }}</td>
-                <td class="px-3 py-2">{{ defect.link }}</td>
+                <td class="px-3 py-2">
+                 {% if defect.screenshot_url %}
+                  <a href="{{ defect.screenshot_url }}" target="_blank" class="text-blue-600 underline">
+                    {{ defect.screenshot_url }}
+                  </a>
+                {% endif %}
+                </td>
+             
               </tr>
               {% empty %}
               <tr>
@@ -163,15 +171,84 @@
 
       <!-- Summary Tab -->
       <div x-show="tab === 'summary'" x-cloak>
-        <h3 class="text-lg font-semibold mb-3 text-gray-800">Summary</h3>
-        <p class="mb-3 text-gray-700">Total Defects: <span class="font-semibold text-blue-500">{{ total_defects }}</span></p>
-        <ul class="list-disc ml-5 text-gray-600">
-          {% for cat, count in category_summary.items %}
-            <li>{{ cat }}: {{ count }}</li>
-          {% empty %}
-            <li>No summary available</li>
-          {% endfor %}
-        </ul>
+        <div class="mt-8">
+  <h3 class="text-lg font-bold mb-2">Summary</h3>
+
+  <!-- Provision Errors -->
+  <table class="table-auto border-collapse border border-gray-400 w-full mb-6">
+    <tr class="bg-gray-200 font-semibold">
+      <td class="border border-gray-400 px-4 py-2">% of Provisions with Error</td>
+      <td class="border border-gray-400 px-4 py-2 text-center">{{ provision_error_rate|floatformat:2 }}%</td>
+    </tr>
+    <tr>
+      <td class="border border-gray-400 px-4 py-2">Provisions with Error</td>
+      <td class="border border-gray-400 px-4 py-2 text-center">{{ jobs_with_defects_count }}</td>
+    </tr>
+    <tr>
+      <td class="border border-gray-400 px-4 py-2">Total Provisions</td>
+      <td class="border border-gray-400 px-4 py-2 text-center">{{ jobs_total }}</td>
+    </tr>
+  </table>
+
+  <!-- Severity Table -->
+  <h4 class="font-semibold">Severity Levels</h4>
+  <table class="table-auto border-collapse border border-gray-400 w-full mb-6">
+    <thead class="bg-orange-200">
+      <tr>
+        <th class="border border-gray-400 px-4 py-2">Severity</th>
+        <th class="border border-gray-400 px-4 py-2">Level</th>
+        <th class="border border-gray-400 px-4 py-2">Error Count</th>
+        <th class="border border-gray-400 px-4 py-2">Error Rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for level, count in severity_counts.items %}
+      <tr>
+        <td class="border border-gray-400 px-4 py-2">Severity</td>
+        <td class="border border-gray-400 px-4 py-2">{{ level }}</td>
+        <td class="border border-gray-400 px-4 py-2">{{ count }}</td>
+        <td class="border border-gray-400 px-4 py-2">
+          {% if severity_total %}{{ count|divisibleby:severity_total|floatformat:2 }}%{% else %}0%{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr class="font-bold bg-gray-100">
+        <td colspan="2" class="border border-gray-400 px-4 py-2">Total</td>
+        <td class="border border-gray-400 px-4 py-2">{{ severity_total }}</td>
+        <td class="border border-gray-400 px-4 py-2">100%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Quality Table -->
+  <h4 class="font-semibold">Quality Ratings</h4>
+  <table class="table-auto border-collapse border border-gray-400 w-full">
+    <thead class="bg-green-200">
+      <tr>
+        <th class="border border-gray-400 px-4 py-2">Rating</th>
+        <th class="border border-gray-400 px-4 py-2">Rate Count</th>
+        <th class="border border-gray-400 px-4 py-2">Percentage</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rating, count in quality_counts.items %}
+      <tr>
+        <td class="border border-gray-400 px-4 py-2">{{ rating }}</td>
+        <td class="border border-gray-400 px-4 py-2">{{ count }}</td>
+        <td class="border border-gray-400 px-4 py-2">
+          {% if quality_total %}{{ count|divisibleby:quality_total|floatformat:2 }}%{% else %}0%{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr class="font-bold bg-gray-100">
+        <td class="border border-gray-400 px-4 py-2">Total</td>
+        <td class="border border-gray-400 px-4 py-2">{{ quality_total }}</td>
+        <td class="border border-gray-400 px-4 py-2">100%</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
       </div>
 
       <!-- Enactments Tab -->

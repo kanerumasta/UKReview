@@ -150,9 +150,9 @@
     </div>
 
     <!-- Modal (same as before) -->
-    <div x-show="showModal" x-transition.opacity class="fixed inset-0 flex items-center justify-center shadow-lg bg-black bg-opacity-50 z-100">
+    <div x-show="showModal" x-transition.opacity class="fixed inset-0 flex items-center justify-center shadow-lg bg-black/10 bg-opacity-50 z-100">
       <div class="bg-white rounded-lg p-6 w-96 shadow-xl border  border-gray-400">
-        <h2 class="text-lg font-bold mb-4 text-gray-700">Reassign Jobs</h2>
+        <h2 class="text-lg font-bold mb-4 text-gray-700">Reassign Jobs To</h2>
         <label class="block mb-2 text-gray-600 font-medium">Select User:</label>
         <select name="reassign_to" class="w-full border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none mb-4">
           {% for u in users %}
