@@ -301,11 +301,11 @@ def generate_excel_response(batch, filename, request=None):
             job.remarks
         ])
 
-        #set jobs generated
-    # for job in jobs:
-    #     job.is_generated = True
-    #     job.generation_date = timezone.now()
-    #     job.save()
+        # set jobs generated
+    for job in jobs:
+        job.is_generated = True
+        job.generation_date = timezone.now()
+        job.save()
 
 
 
