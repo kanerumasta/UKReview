@@ -29,7 +29,10 @@ class EnactmentAssignmentAdmin(admin.ModelAdmin):
 
 @admin.register(ProvisionJobSession)
 class ProvisionJobSessionAdmin(admin.ModelAdmin):
-    list_display=('id','provision_job','started_at','ended_at')
+    list_display=('id','provision_job','started_at','ended_at','duration')
+
+    def get_duration(obj):
+        return obj.duration
     
     # enactment_assignment = models.ForeignKey(EnactmentAssignment,on_delete=models.CASCADE, related_name='jobs', null=True, blank=True)
     # provision = models.ForeignKey(Provision, on_delete=models.CASCADE, related_name='jobs')

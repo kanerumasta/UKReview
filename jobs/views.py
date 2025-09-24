@@ -188,14 +188,63 @@ def submit_job(request, job_id):
                     next_job.start_date = timezone.now()
                 
                 if next_job.status != 'active':
-                    session = ProvisionJobSession.objects.create(provision_job=job)
+                    session = ProvisionJobSession.objects.create(provision_job=next_job)
                     next_job.status = "active"
                
                 next_job.save()
                 messages.success(request, "Job successfully submitted.")
                 return redirect('job_detail', job_id=next_job.id)
             else:
-                return redirect('jobs')
+                
+                # Find the first enactment with unassigned pending jobs
+                enactment = Enactment.objects.filter(
+                    provisions__jobs__status='pending',
+                    provisions__jobs__user__isnull=True
+                ).distinct().first()
+
+                print(enactment)
+
+                if not enactment:
+                    return JsonResponse({"error": "No enactments with pending jobs available."}, status=400)
+
+                # Create assignment
+                assignment = EnactmentAssignment.objects.create(
+                    enactment=enactment,
+                    user=request.user,
+                )
+
+                # Get max jobs per settings
+                max_job_count = JobSettings.objects.first().max_job_count if JobSettings.objects.exists() else 100
+
+                # Assign jobs
+                job_ids = ProvisionJob.objects.filter(
+                    provision__enactment=enactment,
+                    status='pending',
+                    user__isnull=True,
+                    enactment_assignment__isnull=True
+                ).values_list('id', flat=True)[:max_job_count]
+                print(job_ids)
+
+                ProvisionJob.objects.filter(id__in=job_ids).update(
+                    user=request.user,
+                    enactment_assignment=assignment,
+                    date_assigned = timezone.now()
+                )
+                next_job = ProvisionJob.objects.filter(
+                user=request.user,
+                status__in=['pending', 'active', 'onhold']
+            ).exclude(id=job.id).first()
+            if next_job:
+                if next_job.start_date is None:
+                    next_job.start_date = timezone.now()
+                
+                if next_job.status != 'active':
+                    session = ProvisionJobSession.objects.create(provision_job=next_job)
+                    next_job.status = "active"
+               
+                next_job.save()
+                messages.success(request, "Job successfully submitted.")
+                return redirect('job_detail', job_id=next_job.id)
         elif submit_action == 'go_back':
             messages.success(request, "Job successfully submitted.")
             return redirect('jobs')

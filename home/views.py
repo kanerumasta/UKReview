@@ -8,7 +8,7 @@ def home(request):
 
     # --- Total time from all jobs (in hours) ---
     total_seconds = sum(
-        (job.total_time.total_seconds() for job in ProvisionJob.objects.all() if job.total_time),
+        (job.total_time.total_seconds() for job in ProvisionJob.objects.filter(user = request.user) if job.total_time),
         0
     )
     total_hours = round(total_seconds / 3600, 1)

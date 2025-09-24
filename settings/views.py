@@ -85,3 +85,44 @@ def defect_category_delete(request, pk):
         messages.success(request, "Defect category deleted successfully.")
         return redirect("settings_index")
     return render(request, "settings/defect_category_confirm_delete.html", {"category": category})
+
+@csrf_exempt
+def update_quota(request):
+    settings = JobSettings.objects.first()
+    if request.method == 'POST':
+        new_quota = request.POST.get('new_quota')
+        try:
+            new_quota = int(new_quota)
+        except (TypeError, ValueError):
+            messages.error(request, 'Invalid number provided.')
+            return redirect("settings_index")
+
+        if settings:
+            settings.quota = new_quota
+            settings.save()
+            messages.success(request, "New quota successfully saved.")
+            return redirect("settings_index")
+
+    messages.error(request, 'Quota update failed. Please try again later.')
+    return redirect("settings_index")
+
+
+@csrf_exempt
+def update_parttime_quota(request):
+    settings = JobSettings.objects.first()
+    if request.method == 'POST':
+        new_parttime_quota = request.POST.get('new_parttime_quota')
+        try:
+            new_parttime_quota = int(new_parttime_quota)
+        except (TypeError, ValueError):
+            messages.error(request, 'Invalid number provided.')
+            return redirect("settings_index")
+
+        if settings:
+            settings.parttime_quota = new_parttime_quota
+            settings.save()
+            messages.success(request, "New part-time quota successfully saved.")
+            return redirect("settings_index")
+
+    messages.error(request, 'Part-time quota update failed. Please try again later.')
+    return redirect("settings_index")

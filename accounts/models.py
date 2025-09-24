@@ -13,6 +13,8 @@ class User(AbstractUser):
 		default = "user"
 	)
 
+	is_part_time = models.BooleanField(default=False)
+
 
 	def get_fullname(self):
 		return f"{self.first_name} {self.last_name}"

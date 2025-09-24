@@ -8,11 +8,65 @@ from jobs.models import ProvisionJob
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
+
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from django.db.models import Sum, Count, F, ExpressionWrapper, DurationField, Q, FloatField, Func, Case, When, Value, FloatField
+from django.contrib.auth import get_user_model
+from datetime import timedelta
+from django.db.models.functions import Cast
+from settings.models import JobSettings
 
+class ExtractEpoch(Func):
+    function = "EXTRACT"
+    template = "%(function)s(EPOCH FROM %(expressions)s)"
+    output_field = FloatField()
+
+
+
+def get_user_productivity():
+    settings = JobSettings.objects.first()
+
+    users = (
+        User.objects.annotate(
+            # total jobs completed
+            total_jobs_completed=Count(
+                "jobs", filter=Q(jobs__status="completed"), distinct=True
+            ),
+            total_jobs_assigned=Count("jobs", distinct=True),
+            total_enactment_allocated=Count("enactment_assignments", distinct=True),
+            total_time_spent=Sum(
+                ExpressionWrapper(
+                    F("jobs__sessions__ended_at") - F("jobs__sessions__started_at"),
+                    output_field=DurationField(),
+                )
+            ),
+        )
+        .annotate(total_seconds=ExtractEpoch(F("total_time_spent")))
+        .annotate(
+            total_hours=ExpressionWrapper(
+                F("total_seconds") / 3600.0,
+                output_field=FloatField(),
+            ),
+            average_jobs_per_hour=ExpressionWrapper(
+                F("total_jobs_completed") / (F("total_seconds") / 3600.0),
+                output_field=FloatField(),
+            ),
+            # 👇 pick quota based on is_part_time
+            effective_quota=Case(
+                When(is_part_time=True, then=Value(settings.parttime_quota)),
+                default=Value(settings.quota),
+                output_field=FloatField(),
+            ),
+            productivity_ratio=ExpressionWrapper(
+                F("average_jobs_per_hour") / F("effective_quota") * 100,
+                output_field=FloatField(),
+            ),
+        )
+    )
+    return users
 
 def index(request):
     # Base queryset
@@ -20,10 +74,16 @@ def index(request):
         "user", "provision", "enactment_assignment__enactment"
     ).prefetch_related("sessions").order_by('-last_edited')
 
+
+
+
     # --- Get Filters ---
     start_date = request.GET.get("start_date")
     end_date = request.GET.get("end_date")
     user_id = request.GET.get("user_id")
+
+    users = get_user_productivity()
+
 
     # for j in jobs[:5]:
     #     print("DEBUG:", j.id, j.date_assigned)
@@ -41,6 +101,8 @@ def index(request):
     # --- User filter ---
     if user_id:
         jobs = jobs.filter(user__id=user_id)  # ✅ filter on queryset
+
+    settings = JobSettings.objects.first()
 
     # --- Build productivity data ---
     productivity_data = []
@@ -68,6 +130,7 @@ def index(request):
                 "end_time": job.end_date,
                 "time_spent": time_spent,
                 "efficiency": efficiency,
+                "quota":settings.quota
             })
         except Exception as e:
             print(f"Error processing job {job.id}: {e}")
@@ -97,12 +160,6 @@ def index(request):
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    # --- Dropdown list ---
-    users = (
-        User.objects.filter(jobs__isnull=False)
-        .distinct()
-        .order_by("username")
-    )
 
     context = {
         "active_page": "productivity",
@@ -110,6 +167,7 @@ def index(request):
         "users": users,
         "selected_user": user_id,
     }
+
     return render(request, "productivity/index.html", context)
 
 def export_to_excel(request):
