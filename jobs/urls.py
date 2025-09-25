@@ -8,8 +8,8 @@ from .views import (
     job_detail, 
     add_defect_log,
     edit_defect_log,
-    delete_defect_log
-    
+    delete_defect_log,
+    job_detail_with_logs
     )
 
 
@@ -17,6 +17,7 @@ urlpatterns = [
     path('', jobs_index, name='jobs'),
     path('allocate/', allocate_enactment, name='allocate_enactment'),
     path('start/<int:job_id>/', start_job, name='start_job'),
+    path('job_with_log/<int:job_id>/', job_detail_with_logs, name='job_detail_with_logs'),
     path('<int:job_id>/add_defect_log', add_defect_log, name='add_defect_log'),
     path('<int:job_id>/edit_defect_log', edit_defect_log, name='edit_defect_log'),
     path('<int:job_id>/hold', hold, name='hold'),

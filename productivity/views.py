@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, date
 from jobs.models import ProvisionJob
 from django.contrib.auth import get_user_model
 User = get_user_model()
+from django.views.decorators.cache import cache_page
 
 
 import openpyxl
@@ -68,6 +69,7 @@ def get_user_productivity():
     )
     return users
 
+# @cache_page(60 * 5) # Cache the response for 5 minutes
 def index(request):
     # Base queryset
     jobs = ProvisionJob.objects.select_related(

@@ -3,10 +3,15 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from jobs.models import ProvisionJob
 from django.core.paginator import Paginator
+from accounts.decorators import manager_required
+
+
 
 User = get_user_model()
 
+@manager_required
 def allocations_index(request):
+
     jobs = ProvisionJob.objects.filter(user__isnull=False).select_related(
         "user", "provision", "enactment_assignment__enactment"
     ).order_by("-id")

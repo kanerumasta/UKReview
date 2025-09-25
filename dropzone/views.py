@@ -9,11 +9,13 @@ from django.shortcuts import redirect
 from jobs.models import ProvisionJob
 from django.contrib import messages
 from django.core.paginator import Paginator
-
+from accounts.decorators import manager_required
 
 
 # Dropzone view
+@manager_required
 def index(request):
+
     try:
         jobs_list = ProvisionJob.objects.select_related("provision", "user").all()
         paginator = Paginator(jobs_list, 10)  # show 10 rows per page

@@ -15,6 +15,10 @@ from django.conf import settings
 from openpyxl import load_workbook
 import io
 from copy import copy
+from django.core.files import File
+import tempfile
+from datetime import datetime
+from .models import ReportBatch
  
 def reports_view(request):
     batches = Batch.objects.all().order_by("-created_at")
@@ -48,13 +52,17 @@ def reports_view(request):
     severity_total = sum(severity_counts.values())
 
     quality_counts = {
-    0: ProvisionJob.objects.filter(provision__batch=selected_batch, document_rating=0).count(),
-    1: ProvisionJob.objects.filter(provision__batch=selected_batch, document_rating=1).count(),
-    2: ProvisionJob.objects.filter(provision__batch=selected_batch, document_rating=2).count(),
-    3: ProvisionJob.objects.filter(provision__batch=selected_batch, document_rating=3).count(),
+    0: jobs.filter(document_rating=0).count(),
+    1: jobs.filter(document_rating=1).count(),
+    2: jobs.filter(document_rating=2).count(),
+    3: jobs.filter(document_rating=3).count(),
 }
     
     quality_total = sum(quality_counts.values())
+
+    table1_data = []
+
+
 
         
     jobs_with_defects_count = jobs_with_defects.count() if selected_batch else 0
@@ -96,17 +104,33 @@ def reports_view(request):
         # Build defect options dynamically from DB
     defect_options = {}
     categories = DefectCategory.objects.prefetch_related("options").all()
+
+    grand_total = 0
+
     for category in categories:
-        defect_options[category.name] = [
-            {"check_type": option.check_type, "severity_level": option.severity_level}
+        options_list = [
+            {
+                "check_type": option.check_type,
+                "severity_level": option.severity_level,
+                "error_count": defects.filter(check_type=option.check_type).count()
+            }
             for option in category.options.all()
         ]
+        total_errors = sum(opt["error_count"] for opt in options_list)
+
+        defect_options[category.name] = {
+            "options": options_list,
+            "total": total_errors,
+        }
+
+        grand_total += total_errors
+        
 
     
     context = {
         "batches": batches,
         "selected_batch": selected_batch,
-        "enactments": Enactment.objects.filter(batch=selected_batch) if selected_batch else Enactment.objects.none(),
+       "jobs":jobs,
         "defects": page_obj,  # paginated
         "total_defects": defects.count(),
         "category_summary": category_summary,
@@ -123,8 +147,11 @@ def reports_view(request):
         "active_page":"reports",
          "defect_categories": defect_categories,
     "defect_options": defect_options,
+    "defect_options_grand_total":grand_total
     }
-    
+    print(defect_categories)
+    print('Catsum', category_summary)
+    print('Options', defect_options)
     return render(request, "reports/index.html", context)
  
  
@@ -132,27 +159,7 @@ def reports_view(request):
 def partial_excel_report(request):
     batch_id = request.GET.get("batch")
     batch = get_object_or_404(Batch, id=batch_id)
-    jobs = ProvisionJob.objects.filter(provision__batch=batch)
-
-    return generate_excel_response(batch, f"Partial_Report_{batch.name}.xlsx", request)
-
-
-def full_excel_report(request):
-    batch_id = request.GET.get("batch")
-    batch = get_object_or_404(Batch, id=batch_id)
-    jobs = ProvisionJob.objects.filter(provision__batch=batch)
    
- 
-    # Check if all jobs are generated
-    if not jobs.exists() or jobs.filter(is_generated=False).exists():
-        return HttpResponse("Not all ProvisionJobs are generated for this batch.", status=400)
-    return
-    # return generate_excel_response(jobs, f"Full_Report_{batch.name}.xlsx")
-
-
-def generate_excel_response(batch, filename, request=None):
-    template_path = os.path.join(settings.BASE_DIR, "reports", "templates_excel", "output_template.xlsx")
-
     jobs = ProvisionJob.objects.filter(
             provision__batch=batch,
             status="completed",
@@ -173,6 +180,46 @@ def generate_excel_response(batch, filename, request=None):
         provision_job__is_generated=False
     ).order_by("id")
 
+
+    report_batch = ReportBatch.objects.create(created_by = request.user, batch = batch, batch_type = "partial")
+
+    return generate_excel_response(batch, report_batch,jobs, defects, request)
+
+
+def full_excel_report(request):
+    batch_id = request.GET.get("batch")
+    batch = get_object_or_404(Batch, id=batch_id)
+    jobs = ProvisionJob.objects.filter(
+            provision__batch=batch,
+            status="completed"
+    
+                    ).annotate(
+                        defect_count=Count('defect_logs')
+                    ).annotate(
+                        review_outcome_text=Case(
+                            When(defect_count__gt=0, then=Value("Defect Found")),
+                            default=Value("No Defect Found"),
+                            output_field=CharField()
+                        )
+                    )
+
+    defects = DefectLog.objects.filter(
+        provision_job__provision__batch=batch,
+        provision_job__status="completed",
+        
+    ).order_by("id")
+
+
+    report_batch = ReportBatch.objects.create(created_by = request.user, batch = batch, batch_type = "full")
+
+
+    return generate_excel_response(batch, report_batch,jobs, defects, request)
+
+
+def generate_excel_response(batch,report_batch,jobs,defects, request=None):
+    template_path = os.path.join(settings.BASE_DIR, "reports", "templates_excel", "output_template.xlsx")
+
+    
     greater_five_severity3_defects = defects.filter(severity_level=3, error_count__gt=5)
     greater_ten_severity4_defects = defects.filter(severity_level=4, error_count__gt=10)
     
@@ -279,7 +326,7 @@ def generate_excel_response(batch, filename, request=None):
             defect.id,
             defect.provision_job.enactment_assignment.enactment.title,
             defect.provision_job.provision.title,
-            defect.provision_job.date.strftime("%m/%d/%Y").lstrip("0").replace("/0", "/"),
+            defect.provision_job.date.strftime("%d/%m/%Y"),
             defect.category,
             defect.check_type,
             defect.issue_description,
@@ -289,7 +336,7 @@ def generate_excel_response(batch, filename, request=None):
             defect.severity_level,
             defect.error_count,
             defect.provision_job.user.email,
-            defect.created_at.strftime("%m/%d/%Y").lstrip("0").replace("/0", "/"),
+            defect.created_at.strftime("%d/%m/%Y"),
             defect.comments
         ])
 
@@ -307,7 +354,7 @@ def generate_excel_response(batch, filename, request=None):
             job.filename or "",
             job.provision.enactment.title if job.provision.enactment else "",
             job.provision.title if job.provision else "",
-            job.date.strftime("%m/%d/%Y") if job.date else "",
+            job.date.strftime("%d/%m/%Y") if job.date else "",
             job.document_rating,
             review_outcome,
             job.remarks
@@ -319,20 +366,41 @@ def generate_excel_response(batch, filename, request=None):
         job.generation_date = timezone.now()
         job.save()
 
+    report_batch.jobs.add(*jobs)
 
 
 
-    # Save to in-memory stream
+
+    # Generate filename
+    batch_type = report_batch.batch_type.capitalize()
+    batch_title = batch.name.replace(" ", "")
+    date_str = datetime.now().strftime("%d%m%Y")
+    filename = f"{batch_type}_{batch_title}_{date_str}.xlsx"
+
+    # Create temp file and close immediately so openpyxl can write
+    tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    tmp.close()  # now openpyxl can write to it
+
+    # Save workbook to temp file for ReportBatch
+    wb.save(tmp.name)
+
+    # Save to ReportBatch file
+    with open(tmp.name, "rb") as f:
+        report_batch.file.save(filename, File(f), save=True)
+
+
+    os.remove(tmp.name)
+
+    # Save workbook to in-memory stream for download
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
 
-    # Return as download
     response = HttpResponse(
         output,
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response["Content-Disposition"] = f'attachment; filename="defects.xlsx"'
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
 
 
@@ -416,3 +484,19 @@ def edit_defect_log(request, defect_id):
         return redirect("reports_index")  # change "reports" to your desired route name
 
     return JsonResponse({"error": "Invalid request method."}, status=405)
+
+
+def report_generation_detail(request, id):
+    report_batch = get_object_or_404(ReportBatch, id=id)
+    jobs_list = report_batch.jobs.all().order_by("id")  # optional ordering
+
+    # Paginate: 10 jobs per page
+    paginator = Paginator(jobs_list, 10)
+    page_number = request.GET.get("page")
+    jobs_page = paginator.get_page(page_number)
+
+    context = {
+        "report_batch": report_batch,
+        "jobs_page": jobs_page,
+    }
+    return render(request, "reports/report_batch_detail.html", context)

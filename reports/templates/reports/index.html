@@ -1,7 +1,8 @@
 {% extends "base.html"%}
-
+{% load math_extras %}
 {% block content %}
-<div class="p-6" x-data="{ tab: 'defects',editMode: false,
+
+<div class="p-6" x-data="{ tab: 'summary',editMode: false,
     openForm: false,
     
     checkTypes: [],
@@ -18,16 +19,38 @@
       comments: ''
     } }">
   <!-- Title -->
-  <h2 class="text-2xl font-bold flex items-center mb-6 text-gray-900">
+   <div class="flex items-center justify-between">
+  <h2 class="text-2xl font-bold flex items-center  text-gray-900">
     <i class="bi bi-file-earmark-text-fill mr-3 text-blue-500"></i>
     Reports
   </h2>
+  <!-- Export Buttons -->
+  <div class="my-6 flex gap-3">
+    <a href="{% url 'partial_excel_report' %}?batch={{ selected_batch.id }}"
+      class="px-4  shadow-md py-2 bg-blue-400 hover:bg-blue-500 text-black  text-lg rounded-md shadow">
+      <i class="bi bi-file-earmark-spreadsheet mr-1"></i>
+      Generate Partial
+    </a>
+   <a href="{% url 'full_excel_report' %}?batch={{ selected_batch.id }}"
+   class="px-4 shadow-md py-2 text-white text-lg rounded-md shadow
+   {% if selected_batch.all_jobs_completed %}
+          bg-green-600 hover:bg-green-700
+             
+          {% else %}
+               bg-gray-400 cursor-not-allowed pointer-events-none
+          {% endif %}
+          ">
+   <i class="bi bi-file-earmark-excel mr-1"></i>
+   Generate Full
+</a>
+  </div>
+  </div>
 
   <div x-effect="checkTypes = defectOptions[selectedDefect.category] || []"></div>
   <div class="flex items-center justify-between">
 
   <!-- Batch Selector -->
-  <form method="get" class="flex items-center gap-4">
+  <form method="get" class="flex items-center gap-4 mb-4">
     <label for="batch" class="text-sm font-medium text-gray-700">Select Batch:</label>
     <select id="batch" name="batch" 
       onchange="this.form.submit()" 
@@ -40,25 +63,7 @@
       {% endfor %}
     </select>
   </form>
-  <!-- Export Buttons -->
-  <div class="my-6 flex gap-3">
-    <a href="{% url 'partial_excel_report' %}?batch={{ selected_batch.id }}"
-      class="px-4 py-2 bg-blue-400 hover:bg-blue-500 text-black  text-lg rounded-md shadow">
-      <i class="bi bi-file-earmark-spreadsheet mr-1"></i>
-      Generate Partial Report
-    </a>
-   <a href="{% url 'full_excel_report' %}?batch={{ selected_batch.id }}"
-   class="px-4 py-2 text-white text-lg rounded-md shadow
-          {% if selected_batch.all_jobs_completed %}
-          bg-green-600 hover:bg-green-700
-             
-          {% else %}
-               bg-gray-400 cursor-not-allowed pointer-events-none
-          {% endif %}">
-   <i class="bi bi-file-earmark-excel mr-1"></i>
-   Generate Full Report
-</a>
-  </div>
+  
 
   </div>
  
@@ -67,15 +72,16 @@
   <!-- Tabs -->
   <div class="w-full bg-white shadow rounded-lg">
     <div class="flex border-b border-gray-200 bg-gray-50 rounded-t-lg">
-      <button @click="tab = 'defects'"
-        :class="tab === 'defects' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
-        class="px-6 py-3 text-sm focus:outline-none transition">
-        Defects
-      </button>
+     
       <button @click="tab = 'summary'"
         :class="tab === 'summary' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
         class="px-6 py-3 text-sm focus:outline-none transition">
         Summary
+      </button>
+       <button @click="tab = 'defects'"
+        :class="tab === 'defects' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
+        class="px-6 py-3 text-sm focus:outline-none transition">
+        Defects
       </button>
       <button @click="tab = 'enactments'"
         :class="tab === 'enactments' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
@@ -86,6 +92,126 @@
 
     <!-- Tab Contents -->
     <div class="p-4 max-w-full">
+      
+
+      <!-- Summary Tab -->
+      <div x-show="tab === 'summary'" x-cloak>
+        <div class="mt-4">
+
+  <div class="grid grid-cols-2 gap-4">
+  <table class="table-auto border-collapse border border-gray-400 w-full mb-6">
+    <thead class="border bg-[#fff2cd]">
+      <th class="py-4" >Category</th>
+      <th >Error Type</th>
+      <th >Error Count</th>
+      <th >Error Rate</th>
+    
+    </thead>
+    <tbody>
+      {%for key,options in defect_options.items%}
+        <tr class="px-2 py-2 border-b-4 border-double bg-gray-100 border-gray-600 border-t-2  mb-4">
+            <td class="pl-4 font-semibold" colspan="2">{{key}}</td>
+            <td class="pl-4 font-semibold" >{{options.total}}</td>
+            <td class="pl-4 font-semibold" >{{ options.total|percentage:defect_options_grand_total|floatformat:2 }}%</td>
+        </tr>
+          <tr class="h-2"></tr>
+        {%for option in options.options%}
+          <tr class="px-2">
+            <td colspan="1"></td>
+            <td>{{option.check_type}}</td>
+            <td class="pl-4">{{option.error_count}}</td>
+
+            <td class="pl-4">{{ option.error_count|percentage:options.total|floatformat:2 }}%</td>
+          </tr>
+        {%endfor%}
+        <tr class="h-6"></tr>
+      {%endfor%}
+      <tr class="pl-4 font-bold h-6 border-t-2 border-black">
+        <td class="py-3 pl-4">Total Errors</td>
+        <td>-</td>
+        <td class="pl-4">{{defect_options_grand_total}}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+<div>
+  <!-- Provision Errors -->
+  <table class="table-auto border-collapse border border-gray-400 w-full mb-6">
+    <tr class="bg-gray-200 font-semibold">
+      <td class="border border-gray-400 px-4 py-2">% of Provisions with Error</td>
+      <td class="border border-gray-400 px-4 py-2 text-center">{{ provision_error_rate|floatformat:2 }}%</td>
+    </tr>
+    <tr>
+      <td class="border border-gray-400 px-4 py-2">Provisions with Error</td>
+      <td class="border border-gray-400 px-4 py-2 text-center">{{ jobs_with_defects_count }}</td>
+    </tr>
+    <tr>
+      <td class="border border-gray-400 px-4 py-2">Total Provisions</td>
+      <td class="border border-gray-400 px-4 py-2 text-center">{{ jobs_total }}</td>
+    </tr>
+  </table>
+
+  <!-- Severity Table -->
+  <h4 class="font-semibold">Severity Levels</h4>
+  <table class="table-auto border-collapse border border-gray-400 w-full mb-6">
+    <thead class="bg-orange-200">
+      <tr>
+        <th class="border border-gray-400 px-4 py-2">Level</th>
+        <th class="border border-gray-400 px-4 py-2">Error Count</th>
+        <th class="border border-gray-400 px-4 py-2">Error Rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for level, count in severity_counts.items %}
+      <tr>
+        <td class="border border-gray-400 px-4 py-2">{{ level }}</td>
+        <td class="border border-gray-400 px-4 py-2">{{ count }}</td>
+        <td class="border border-gray-400 px-4 py-2">
+         {{ count|percentage:severity_total|floatformat:2 }}%
+        </td>
+      </tr>
+      {% endfor %}
+      <tr class="font-bold bg-gray-100">
+        <td class="border border-gray-400 px-4 py-2">Total</td>
+        <td class="border border-gray-400 px-4 py-2">{{ severity_total }}</td>
+        <td class="border border-gray-400 px-4 py-2">100%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Quality Table -->
+  <h4 class="font-semibold">Quality Ratings</h4>
+  <table class="table-auto border-collapse border border-gray-400 w-full">
+    <thead class="bg-green-200">
+      <tr>
+        <th class="border border-gray-400 px-4 py-2">Rating</th>
+        <th class="border border-gray-400 px-4 py-2">Rate Count</th>
+        <th class="border border-gray-400 px-4 py-2">Percentage</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rating, count in quality_counts.items %}
+      <tr>
+        <td class="border border-gray-400 px-4 py-2">{{ rating }}</td>
+        <td class="border border-gray-400 px-4 py-2">{{ count }}</td>
+        <td class="border border-gray-400 px-4 py-2">
+          {{ count|percentage:quality_total|floatformat:2 }}%
+        </td>
+      </tr>
+      {% endfor %}
+      <tr class="font-bold bg-gray-100">
+        <td class="border border-gray-400 px-4 py-2">Total</td>
+        <td class="border border-gray-400 px-4 py-2">{{ quality_total }}</td>
+        <td class="border border-gray-400 px-4 py-2">100%</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  </div>
+</div>
+
+      </div>
+
       <!-- Defects Tab -->
       <div x-show="tab === 'defects'">
               <h3 class="text-lg font-semibold mb-4 text-gray-800">Defects</h3>
@@ -202,104 +328,37 @@
 
       </div>
 
-      <!-- Summary Tab -->
-      <div x-show="tab === 'summary'" x-cloak>
-        <div class="mt-8">
-  <h3 class="text-lg font-bold mb-2">Summary</h3>
-
-  <!-- Provision Errors -->
-  <table class="table-auto border-collapse border border-gray-400 w-full mb-6">
-    <tr class="bg-gray-200 font-semibold">
-      <td class="border border-gray-400 px-4 py-2">% of Provisions with Error</td>
-      <td class="border border-gray-400 px-4 py-2 text-center">{{ provision_error_rate|floatformat:2 }}%</td>
-    </tr>
-    <tr>
-      <td class="border border-gray-400 px-4 py-2">Provisions with Error</td>
-      <td class="border border-gray-400 px-4 py-2 text-center">{{ jobs_with_defects_count }}</td>
-    </tr>
-    <tr>
-      <td class="border border-gray-400 px-4 py-2">Total Provisions</td>
-      <td class="border border-gray-400 px-4 py-2 text-center">{{ jobs_total }}</td>
-    </tr>
-  </table>
-
-  <!-- Severity Table -->
-  <h4 class="font-semibold">Severity Levels</h4>
-  <table class="table-auto border-collapse border border-gray-400 w-full mb-6">
-    <thead class="bg-orange-200">
-      <tr>
-        <th class="border border-gray-400 px-4 py-2">Severity</th>
-        <th class="border border-gray-400 px-4 py-2">Level</th>
-        <th class="border border-gray-400 px-4 py-2">Error Count</th>
-        <th class="border border-gray-400 px-4 py-2">Error Rate</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for level, count in severity_counts.items %}
-      <tr>
-        <td class="border border-gray-400 px-4 py-2">Severity</td>
-        <td class="border border-gray-400 px-4 py-2">{{ level }}</td>
-        <td class="border border-gray-400 px-4 py-2">{{ count }}</td>
-        <td class="border border-gray-400 px-4 py-2">
-          {% if severity_total %}{{ count|divisibleby:severity_total|floatformat:2 }}%{% else %}0%{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-      <tr class="font-bold bg-gray-100">
-        <td colspan="2" class="border border-gray-400 px-4 py-2">Total</td>
-        <td class="border border-gray-400 px-4 py-2">{{ severity_total }}</td>
-        <td class="border border-gray-400 px-4 py-2">100%</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <!-- Quality Table -->
-  <h4 class="font-semibold">Quality Ratings</h4>
-  <table class="table-auto border-collapse border border-gray-400 w-full">
-    <thead class="bg-green-200">
-      <tr>
-        <th class="border border-gray-400 px-4 py-2">Rating</th>
-        <th class="border border-gray-400 px-4 py-2">Rate Count</th>
-        <th class="border border-gray-400 px-4 py-2">Percentage</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for rating, count in quality_counts.items %}
-      <tr>
-        <td class="border border-gray-400 px-4 py-2">{{ rating }}</td>
-        <td class="border border-gray-400 px-4 py-2">{{ count }}</td>
-        <td class="border border-gray-400 px-4 py-2">
-          {% if quality_total %}{{ count|divisibleby:quality_total|floatformat:2 }}%{% else %}0%{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-      <tr class="font-bold bg-gray-100">
-        <td class="border border-gray-400 px-4 py-2">Total</td>
-        <td class="border border-gray-400 px-4 py-2">{{ quality_total }}</td>
-        <td class="border border-gray-400 px-4 py-2">100%</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-      </div>
-
       <!-- Enactments Tab -->
       <div x-show="tab === 'enactments'" x-cloak>
-        <h3 class="text-lg font-semibold mb-3 text-gray-800">Enactments</h3>
-        <div class="overflow-x-auto rounded-lg shadow-sm">
+        <div class="overflow-x-auto rounded-lg ">
           <table class="min-w-full divide-y divide-gray-200 text-sm">
             <thead class="bg-gray-100 sticky top-0">
               <tr>
-                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">ID</th>
-                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Title</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Filename</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Enactment Citation</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Provision</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Date</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Document Rating</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Review Outcome</th>
+                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Remarks</th>
+
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-100">
-              {% for enactment in enactments %}
+              {% for job in jobs %}
               <tr class="hover:bg-gray-50 transition">
-                <td class="px-3 py-2">{{ enactment.id }}</td>
-                <td class="px-3 py-2">{{ enactment.title }}</td>
+                <td class="px-3 py-2">{{ job.filename }}</td>
+                <td class="px-3 py-2">{{ job.provision.enactment.title }}</td>
+                <td class="px-3 py-2">{{ job.provision.title }}</td>
+                <td class="px-3 py-2">{{ job.date|date:"d/m/Y" }}</td>
+                <td class="px-3 py-2">{{ job.document_rating }}</td>
+                <td class="px-3 py-2">
+                  {%if job.defect_logs.exists%}
+                  Defect Found
+                  {%else%}
+                  No Defect Found
+                  {%endif%}
+                </td>
               </tr>
               {% empty %}
               <tr>

@@ -27,7 +27,7 @@
 
 <div class="p-6" 
      x-data="{ 
-        reassignMode: false, 
+        reassignMode: true, 
         selectedJobs: [], 
         showModal: false, 
         toggleJob(id) { 
@@ -36,14 +36,14 @@
             } else {
                 this.selectedJobs.push(id);
             }
-            this.reassignMode = this.selectedJobs.length > 0;
+           
         } 
      }">
 
   <h1 class="text-2xl font-bold mb-6 text-gray-700">Allocations</h1>
 
   <!-- Filters -->
-  <form method="get" class="flex flex-wrap gap-4 mb-6 items-center">
+  <form method="get" class="flex flex-wrap gap-4 mb-6 items-center" id="filters-form">
     <select name="user" class="border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
       <option value="">All Users</option>
       {% for u in users %}
@@ -57,8 +57,6 @@
     {% endfor %}
 </select>
 
-
-    <button type="submit" class="bg-blue-500 hover:bg-blue-400 cursor-pointer text-white px-4 py-2 rounded-md shadow-md transition">Filter</button>
   </form>
 
   <!-- Jobs Table -->
@@ -68,10 +66,10 @@
       <thead class="bg-gray-100">
         <tr>
           <th></th>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">ID</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Job ID</th>
           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Provision</th>
           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Enactment</th>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
           <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
         </tr>
       </thead>
@@ -86,16 +84,17 @@
                    @click.stop
                    class="form-checkbox h-5 w-5 text-blue-600 rounded">
           </td>
-          <td class="px-6 py-4 font-medium text-gray-700">JOB-{{ job.id }}</td>
-          <td class="px-6 py-4 text-gray-600">{{ job.provision.title }}</td>
-          <td class="px-6 py-4 text-gray-600">{{ job.enactment_assignment.enactment.title }}</td>
-          <td class="px-6 py-4 text-gray-700">
+          <td class="px-6 py-4 text-gray-700 capitalize">
             {% if job.user %}
-              {{ job.user.username }}
+              {{ job.user.get_fullname }}
             {% else %}
               <span class="text-gray-400 italic">Unassigned</span>
             {% endif %}
           </td>
+          <td class="px-6 py-4 font-medium text-gray-700">JOB-{{ job.id }}</td>
+          <td class="px-6 py-4 text-gray-600">{{ job.provision.title }}</td>
+          <td class="px-6 py-4 text-gray-600">{{ job.enactment_assignment.enactment.title }}</td>
+          
           <td class="px-6 py-4">
             <span class="px-3 py-1 rounded-full text-xs font-semibold 
                          {% if job.status == 'pending' %}bg-gray-100 text-gray-700
@@ -170,5 +169,17 @@
 
   </form>
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const form = document.getElementById('filters-form');
+    const selects = form.querySelectorAll('select');
+
+    selects.forEach(select => {
+        select.addEventListener('change', () => {
+            form.submit();
+        });
+    });
+});
+</script>
 
 {% endblock %}

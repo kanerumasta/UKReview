@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-6 bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto bg-white shadow-lg rounded-xl overflow-hidden">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <a href="javascript:history.back()"
+               class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200">
+                Back
+            </a>
+            <h1 class="text-2xl font-bold text-gray-800">Job Details: JOB-{{ job.id }}</h1>
+        </div>
+
+        <!-- Job Info -->
+        <div class="px-6 py-4 space-y-2">
+            <p><span class="font-semibold">Enactment:</span> {{ job.provision.enactment.title }}</p>
+            <p><span class="font-semibold">Provision:</span> {{ job.provision.title }}</p>
+            <p><span class="font-semibold">Assigned To:</span> {{ job.user.username|default:"-" }}</p>
+            <p>
+                <span class="font-semibold">Status:</span> 
+                <span class="px-2 py-1 rounded-full text-sm 
+                    {% if job.status == 'completed' %} bg-green-100 text-green-800
+                    {% elif job.status == 'active' %} bg-blue-100 text-blue-800
+                    {% elif job.status == 'onhold' %} bg-yellow-100 text-yellow-800
+                    {% else %} bg-gray-100 text-gray-700 {% endif %}">
+                    {{ job.status|capfirst }}
+                </span>
+            </p>
+        </div>
+
+        <!-- Defect Logs Table -->
+        <div class="px-6 py-4">
+            <h2 class="text-xl font-semibold mb-3 text-gray-800">Defect Logs</h2>
+            <div class="overflow-x-auto bg-white shadow rounded-xl">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">ID</th>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Category</th>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Check Type</th>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Severity</th>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Issue</th>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Expected</th>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Actual</th>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Screenshot</th>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for log in defect_logs %}
+                        <tr class="hover:bg-gray-50 transition duration-150">
+                            <td class="px-4 py-3 text-sm text-gray-800">{{ log.id }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ log.category }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ log.check_type }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ log.severity_level }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ log.issue_description|truncatechars:50 }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ log.expected_outcome|truncatechars:50 }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ log.actual_outcome|truncatechars:50 }}</td>
+                            <td class="px-4 py-3 text-sm">
+                                {% if log.screenshot %}
+                                    <a href="{{ log.screenshot.url }}" target="_blank" 
+                                       class="px-2 py-1 bg-black text-white rounded hover:bg-gray-800 transition duration-200">
+                                        View
+                                    </a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-700">{{ log.comments|truncatechars:50 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="px-4 py-6 text-center text-gray-500">No defect logs for this job.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-6 bg-gray-50 min-h-screen">
+     <a href="javascript:history.back()"
+               class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200">
+                Back
+            </a>
+    <div class="max-w-7xl mx-auto bg-white p-4 shadow-md rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+
+                <h2 class="text-xl font-semibold text-gray-800 capitalize">Report Batch:<span class="text-gray-500">{{report_batch.batch_type}}_{{ report_batch.batch.name }}</span></h2>
+
+            </div>
+            <span class="text-gray-500 text-sm">Created at: {{ report_batch.created_at|date:"M d, Y H:i" }}</span>
+        </div>
+
+        <div class="overflow-x-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">ID</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Enactment</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Provision</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Filename</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Version Date</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Assigned To</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Review Outcome</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+    {% for job in jobs_page %}
+    <tr data-url="{% url 'job_detail_with_logs' job.id %}" class="hover:bg-gray-50 cursor-pointer transition duration-150 ease-in-out transform hover:scale-[1.01]">
+        <td class="px-4 py-3 text-sm font-medium text-gray-800">JOB-{{ job.id }}</td>
+        <td class="px-4 py-3 text-sm text-gray-700">{{ job.provision.enactment.title }}</td>
+        <td class="px-4 py-3 text-sm text-gray-700">{{ job.provision.title }}</td>
+        <td class="px-4 py-3 text-sm text-gray-700">{{ job.filename|default:"-" }}</td>
+        <td class="px-4 py-3 text-sm text-gray-700">{{ job.date|date:"M d, Y"|default:"-" }}</td>
+        <td class="px-4 py-3 text-sm text-gray-700">{{ job.user.username|default:"-" }}</td>
+        <td class="px-4 py-3 text-sm text-gray-700">
+            {% if job.defect_logs.exists %}
+                Defect Found ({{ job.defect_logs.count }})
+            {% else %}
+                No Defect Found
+            {% endif %}
+        </td>
+    </tr> 
+    {% empty %}
+    <tr>
+        <td colspan="7" class="px-4 py-6 text-center text-gray-500">No jobs available in this batch.</td>
+    </tr>
+    {% endfor %}
+</tbody>
+
+            </table>
+            <div class="mt-4 flex justify-center space-x-2">
+    {% if jobs_page.has_previous %}
+        <a href="?page={{ jobs_page.previous_page_number }}" class="px-3 py-1 bg-gray-800 text-white rounded hover:bg-gray-700">Previous</a>
+    {% endif %}
+
+    <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded">
+        Page {{ jobs_page.number }} of {{ jobs_page.paginator.num_pages }}
+    </span>
+
+    {% if jobs_page.has_next %}
+        <a href="?page={{ jobs_page.next_page_number }}" class="px-3 py-1 bg-gray-800 text-white rounded hover:bg-gray-700">Next</a>
+    {% endif %}
+</div>
+
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const rows = document.querySelectorAll("tr[data-url]");
+    rows.forEach(row => {
+        row.addEventListener("click", () => {
+            const url = row.getAttribute("data-url");
+            if (url) {
+                window.location.href = url;
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}

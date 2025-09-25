@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.db.models import Q, Exists, OuterRef
 from django.contrib import messages
 from settings.models import JobSettings
+from django.core.cache import cache
 
 
 
@@ -76,6 +77,7 @@ def allocate_enactment(request):
         enactment_assignment=assignment,
         date_assigned = timezone.now()
     )
+
 
     return redirect("jobs")
 
@@ -339,4 +341,13 @@ def delete_defect_log(request, defect_id):
 
 
 
-    
+
+def job_detail_with_logs(request, job_id):
+    job = get_object_or_404(ProvisionJob, id=job_id)
+    defect_logs = DefectLog.objects.filter(provision_job=job).order_by('-created_at')
+
+    context = {
+        'job': job,
+        'defect_logs': defect_logs,
+    }
+    return render(request, 'jobs/job_detail_with_logs.html', context)

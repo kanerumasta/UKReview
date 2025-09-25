@@ -7,7 +7,9 @@ from defects.models import DefectCategory
 from .forms import DefectCategoryForm, DefectOptionFormSet
 from django.contrib import messages
 from .models import JobSettings
+from accounts.decorators import manager_required
 
+@manager_required
 def index(request):
     categories = DefectCategory.objects.all().order_by("name")
     settings = JobSettings.objects.first()
