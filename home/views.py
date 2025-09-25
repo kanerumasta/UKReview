@@ -10,30 +10,30 @@ from django.db.models import Count
 def home(request):
     batch = Batch.objects.order_by("-created_at").first()
 
-    jobs = ProvisionJob.objects.filter(provision__batch = batch)
-    active_jobs_count = jobs.filter(status="active").count()
-    completed_jobs_count = jobs.filter(status="completed").count()
-    onhold_jobs_count = jobs.filter(status="onhold").count()
+    completed_jobs = ProvisionJob.objects.filter(status="completed")
+    
+    # jobs = ProvisionJob.objects.filter(provision__batch = batch)
+    active_jobs_count = ProvisionJob.objects.filter(status="active").count()
+    completed_jobs_count = completed_jobs.count()
+    onhold_jobs_count = ProvisionJob.objects.filter(status="onhold").count()
 
     generations = ReportBatch.objects.filter(batch = batch).order_by('-created_at')
 
 
     # --- Total time from all jobs (in hours) ---
     total_seconds = sum(
-        (job.total_time.total_seconds() for job in jobs if job.total_time),
+        (job.total_time.total_seconds() for job in completed_jobs if job.total_time),
         0
     )
     total_hours = round(total_seconds / 3600, 1)
 
-    # --- Recent Jobs (last 5 by assigned date) ---
-    recent_jobs = jobs.select_related("provision", "user").order_by("-date_assigned")[:5]
-    remaining_jobs_count = jobs.filter(status = "pending").count()
+ 
+    remaining_jobs_count = ProvisionJob.objects.filter(status = "pending").count()
     context = {
         "active_jobs_count": active_jobs_count,
         "completed_jobs_count": completed_jobs_count,
         "onhold_jobs_count": onhold_jobs_count,
         "total_hours": total_hours,
-        "recent_jobs": recent_jobs,
         "active_page": "dashboard",
         "remaining_jobs":remaining_jobs_count,
         "generations":generations

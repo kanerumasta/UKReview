@@ -93,43 +93,6 @@
         </table>
     </div>
 
-    <!-- Pagination -->
-        <!-- <div class="mt-4 flex justify-center space-x-2">
-        {% if productivity_data.has_previous %}
-            <a href="?page={{ productivity_data.previous_page_number }}"
-            class="px-3 py-1 border rounded hover:bg-gray-200">Previous</a>
-        {% endif %}
-
-        {# show first page and ellipsis #}
-        {% if productivity_data.number > 3 %}
-            <a href="?page=1" class="px-3 py-1 border rounded hover:bg-gray-200">1</a>
-            <span class="px-3 py-1">...</span>
-        {% endif %}
-
-        {# show current page -2 to +2 #}
-        {% for num in productivity_data.paginator.page_range %}
-            {% if num >= productivity_data.number|add:-2 and num <= productivity_data.number|add:2 %}
-                {% if num == productivity_data.number %}
-                    <span class="px-3 py-1 border rounded bg-blue-500 text-white">{{ num }}</span>
-                {% else %}
-                    <a href="?page={{ num }}" class="px-3 py-1 border rounded hover:bg-gray-200">{{ num }}</a>
-                {% endif %}
-            {% endif %}
-        {% endfor %}
-
-        {# show last page and ellipsis #}
-        {% if productivity_data.number < productivity_data.paginator.num_pages|add:-2 %}
-            <span class="px-3 py-1">...</span>
-            <a href="?page={{ productivity_data.paginator.num_pages }}"
-            class="px-3 py-1 border rounded hover:bg-gray-200">{{ productivity_data.paginator.num_pages }}</a>
-        {% endif %}
-
-        {% if productivity_data.has_next %}
-            <a href="?page={{ productivity_data.next_page_number }}"
-            class="px-3 py-1 border rounded hover:bg-gray-200">Next</a>
-        {% endif %}
-    </div> -->
-
 </div>
 
 
