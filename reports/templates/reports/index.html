@@ -21,13 +21,13 @@
      
     } }">
   <!-- Title -->
-   <div class="flex items-center justify-between">
+   <div class="flex items-start justify-between mb-4">
   <h2 class="text-2xl font-bold flex items-center  text-gray-900">
     <i class="bi bi-file-earmark-text-fill mr-3 text-blue-500"></i>
     Reports
   </h2>
   <!-- Export Buttons -->
-  <div class="my-6 flex gap-3">
+  <div class="flex gap-3">
     <a href="{% url 'partial_excel_report' %}?batch={{ selected_batch.id }}"
       class="px-4  shadow-md py-2 bg-blue-400 hover:bg-blue-500 text-black  text-lg rounded-md shadow">
       <i class="bi bi-file-earmark-spreadsheet mr-1"></i>
@@ -72,30 +72,34 @@
 
 
   <!-- Tabs -->
-  <div class="w-full bg-white shadow rounded-lg">
-    <div class="flex border-b border-gray-200 bg-gray-50 rounded-t-lg">
+  <div class="w-full bg-white">
+    <div class="flex border-b border-gray-200 bg-gray-50 rounded-t-lg sticky top-[80px]">
      
       <button @click="tab = 'summary'"
         :class="tab === 'summary' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
-        class="px-6 py-3 text-sm focus:outline-none transition">
+        class="px-6 py-3 text-md focus:outline-none transition">
         Summary
       </button>
        <button @click="tab = 'defects'"
         :class="tab === 'defects' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
-        class="px-6 py-3 text-sm focus:outline-none transition">
+        class="px-6 py-3 text-md focus:outline-none transition">
         Defects
       </button>
       <button @click="tab = 'enactments'"
         :class="tab === 'enactments' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
-        class="px-6 py-3 text-sm focus:outline-none transition">
+        class="px-6 py-3 text-md focus:outline-none transition">
         Enactments
+      </button>
+      <button @click="tab = 'error_type_highlights'"
+        :class="tab === 'error_type_highlights' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
+        class="px-6 py-3 text-md focus:outline-none transition">
+        Error Type Highlights
       </button>
     </div>
 
     <!-- Tab Contents -->
     <div class="p-4 max-w-full">
       
-
       <!-- Summary Tab -->
       <div x-show="tab === 'summary'" x-cloak>
         <div class="mt-4">
@@ -249,11 +253,11 @@
               </button>
       </div>
 
-        <div  class="overflow-x-auto max-w-full rounded-lg shadow-sm ">
+        <div  class="overflow-x-auto max-w-full  shadow-sm ">
           <table class="min-w-full divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-100 sticky top-0">
+            <thead class="bg-gray-200 sticky top-0">
               <tr>
-                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap">Defect ID</th>
+                <th class="px-3 py-4 text-left font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap">Defect ID</th>
                 <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap">Enactment Citation</th>
                 <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap">Provision Ref(s)</th>
                 <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider whitespace-nowrap">Version Date</th>
@@ -306,7 +310,7 @@
               editMode = true;
               openForm = true;
             " class="hover:bg-gray-100 cursor-pointer transition">
-                <td class="px-3 py-2 whitespace-nowrap">{{ defect.id }}</td>
+                <td class="px-3 py-3 whitespace-nowrap">{{ defect.id }}</td>
                 <td class="px-3 py-2">{{ defect.provision_job.enactment_assignment.enactment.title }}</td>
                 <td class="px-3 py-2">{{ defect.provision_job.provision.title }}</td>
                 <td class="px-3 py-2 whitespace-nowrap">{{ defect.provision_job.date }}</td>
@@ -378,11 +382,11 @@
 
       <!-- Enactments Tab -->
       <div x-show="tab === 'enactments'" x-cloak>
-        <div class="overflow-x-auto rounded-lg ">
+        <div class="overflow-x-auto  ">
           <table class="min-w-full divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-100 sticky top-0">
+            <thead class="bg-gray-200 sticky top-0">
               <tr>
-                <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Filename</th>
+                <th class="px-3 py-3 text-left font-medium text-gray-700 uppercase tracking-wider">Filename</th>
                 <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Enactment Citation</th>
                 <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Provision</th>
                 <th class="px-3 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Date</th>
@@ -395,7 +399,7 @@
             <tbody class="bg-white divide-y divide-gray-100">
               {% for job in jobs %}
               <tr class="hover:bg-gray-50 transition">
-                <td class="px-3 py-2">{{ job.filename }}</td>
+                <td class="px-3 py-3">{{ job.filename }}</td>
                 <td class="px-3 py-2">{{ job.provision.enactment.title }}</td>
                 <td class="px-3 py-2">{{ job.provision.title }}</td>
                 <td class="px-3 py-2">{{ job.date|date:"d/m/Y" }}</td>
@@ -417,6 +421,81 @@
           </table>
         </div>
       </div>
+    
+      <!-- Error Type Highlights Tab  -->
+       <div x-show="tab==='error_type_highlights'">       <table class="border p-2 mb-6">
+        <p class="border p-4 font-semibold">>5 occurrences of the same Sev 3 issue in one document</p>
+        <thead class="bg-gray-300"><th class="border py-2">Defect ID</th>
+        <th class="border py-2">Enactment Citation</th>
+        <th class="border py-2">Provision Ref(s)</th>
+        <th class="border py-2">Version Date</th>
+        <th class="border py-2">Category</th>
+        <th class="border py-2">Check Type</th>
+        <th class="border py-2">Issue Description</th>
+        <th class="border py-2">Expected Outcome (BES)</th>
+        <th class="border py-2">Actual Outcome (L+CP)</th>
+        <th class="border py-2">Screenshot/Link</th>
+        <th class="border py-2">Severity</th>
+        <th class="border py-2">Count Per Document</th></thead>
+        <tbody>
+          {% for defect in greater_five_severity3_defects %}
+            <tr>
+              <td class="border p-2 whitespace-nowrap">{{defect.id}}</td>
+              <td class="border p-2">{{defect.provision_job.provision.enactment.title}}</td>
+              <td class="border p-2">{{defect.provision_job.provision.title}}</td>
+              <td class="border p-2 whitespace-nowrap">{{defect.provision_job.date}}</td>
+              <td class="border p-2">{{defect.category}}</td>
+              <td class="border p-2">{{defect.check_type}}</td>
+              <td class="border p-2">{{defect.issue_description}}</td>
+              <td class="border p-2">{{defect.expected_outcome}}</td>
+              <td class="border p-2">{{defect.actual_outcome}}</td>
+              <td class="border p-2">{{defect.screenshot_url}}</td>
+              <td class="border p-2">{{defect.severity_level}}</td>
+              <td class="border p-2">{{defect.error_count}}</td>
+            </tr>
+          {%endfor%}
+        </tbody>
+       </table>
+       <table class="border p-2">
+        <p class="border p-4 font-semibold">>10 repeated Sev 4 errors in a document</p>
+        <thead class="bg-gray-300"><th class="border p-2">Defect ID</th>
+        <th class="border p-2">Enactment Citation</th>
+        <th class="border p-2">Provision Ref(s)</th>
+        <th class="border p-2">Version Date</th>
+        <th class="border p-2">Category</th>
+        <th class="border p-2">Check Type</th>
+        <th class="border p-2">Issue Description</th>
+        <th class="border p-2">Expected Outcome (BES)</th>
+        <th class="border p-2">Actual Outcome (L+CP)</th>
+        <th class="border p-2">Screenshot/Link</th>
+        <th class="border p-2">Severity</th>
+        <th class="border p-2">Count Per Document</th></thead>
+        <tbody>
+          {% for defect in greater_ten_severity4_defects %}
+            <tr>
+              <td class="border p-2 whitespace-nowrap">{{defect.id}}</td>
+              <td class="border p-2">{{defect.provision_job.provision.enactment.title}}</td>
+              <td class="border p-2">{{defect.provision_job.provision.title}}</td>
+              <td class="border p-2 whitespace-nowrap">{{defect.provision_job.date}}</td>
+              <td class="border p-2">{{defect.category}}</td>
+              <td class="border p-2">{{defect.check_type}}</td>
+              <td class="border p-2">{{defect.issue_description}}</td>
+              <td class="border p-2">{{defect.expected_outcome}}</td>
+              <td class="border p-2">{{defect.actual_outcome}}</td>
+              <td class="border p-2">
+                {%if defect.screenshot_url %}
+                 <a target="_blank" class="hover:text-blue-600" href="{{defect.screenshot_url}}">View Image</a>
+                 {%endif%}
+              </td>
+              <td class="border p-2">{{defect.severity_level}}</td>
+              <td class="border p-2">{{defect.error_count}}</td>
+            </tr>
+          {%endfor%}
+        </tbody>
+       </table>
+       </div>
+
+
     </div>
   </div>
 <div x-show="editMode" x-cloak

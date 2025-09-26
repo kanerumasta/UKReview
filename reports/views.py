@@ -37,6 +37,8 @@ def reports_view(request):
         provision_job__is_generated = False
     ).order_by("id") if selected_batch else DefectLog.objects.none()
 
+
+
     jobs = ProvisionJob.objects.filter(provision__batch = selected_batch, status = "completed", is_generated=False).order_by("id")
     jobs_with_defects = jobs.annotate(
         defect_count=Count('defect_logs')
@@ -63,18 +65,34 @@ def reports_view(request):
     table1_data = []
 
 
-
+   # Summary
+    category_summary = {}
         
     jobs_with_defects_count = jobs_with_defects.count() if selected_batch else 0
     jobs_total = jobs.count() if selected_batch else 0
     provision_error_rate = (jobs_with_defects_count / jobs_total * 100) if jobs_total else 0
 
     for defect in defects:
+        category_summary[defect.category] = category_summary.get(defect.category, 0) + 1
         if defect.screenshot:
             defect.screenshot_url = defect.get_absolute_url(request)
         else:
             defect.screenshot_url = ''
- 
+
+    greater_five_severity3_defects = defects.filter(severity_level=3, error_count__gt=5)
+    greater_ten_severity4_defects = defects.filter(severity_level=4, error_count__gt=10)
+
+
+    for defect in greater_five_severity3_defects:
+        if defect.screenshot:
+            defect.screenshot_url = defect.get_absolute_url(request)
+        else:
+            defect.screenshot_url = ""
+    for defect in greater_ten_severity4_defects:
+        if defect.screenshot:
+            defect.screenshot_url = defect.get_absolute_url(request)
+        else:
+            defect.screenshot_url = ""
     # Apply search
     if search_query:
         defects = defects.filter(
@@ -95,10 +113,9 @@ def reports_view(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
  
-    # Summary
-    category_summary = {}
-    for defect in defects:
-        category_summary[defect.category] = category_summary.get(defect.category, 0) + 1
+ 
+
+        
 
     defect_categories = DefectCategory.objects.all()
         # Build defect options dynamically from DB
@@ -147,11 +164,11 @@ def reports_view(request):
         "active_page":"reports",
          "defect_categories": defect_categories,
     "defect_options": defect_options,
-    "defect_options_grand_total":grand_total
+    "defect_options_grand_total":grand_total,
+    "greater_five_severity3_defects":greater_five_severity3_defects,
+    "greater_ten_severity4_defects":greater_ten_severity4_defects
     }
-    print(defect_categories)
-    print('Catsum', category_summary)
-    print('Options', defect_options)
+
     return render(request, "reports/index.html", context)
  
  
@@ -332,13 +349,22 @@ def generate_excel_response(batch,report_batch,jobs,defects, request=None):
             defect.issue_description,
             defect.expected_outcome,
             defect.actual_outcome,
-            url,
+            "View Screenshot" if url else "",
             defect.severity_level,
             defect.error_count,
             defect.provision_job.user.email,
             defect.created_at.strftime("%d/%m/%Y"),
             defect.comments
         ])
+        
+        # get the last row index
+        row_num = ws1.max_row
+
+        # apply hyperlink and style if URL exists
+        if url:
+            cell = ws1.cell(row=row_num, column=10)   # column 10 = screenshot column
+            cell.hyperlink = url
+            cell.font = Font(color="0000FF", underline="single") 
 
     for job in jobs:
         review_outcome = "No Defect Found"
@@ -347,9 +373,7 @@ def generate_excel_response(batch,report_batch,jobs,defects, request=None):
         elif hasattr(job, "review_outcome_text") and job.review_outcome_text:
             review_outcome = str(job.review_outcome_text)
 
-        
-        print('OUT', review_outcome)
-
+    
         ws2.append([
             job.filename or "",
             job.provision.enactment.title if job.provision.enactment else "",
