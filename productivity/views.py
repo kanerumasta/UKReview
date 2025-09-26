@@ -112,7 +112,7 @@ def export_to_excel(request):
             except Exception as e:
                 print("End date filter error:", e)
 
-        print("Filters:", start_date, end_date, user_id, "Count:", jobs.count())
+
 
 
         # --- Create workbook ---

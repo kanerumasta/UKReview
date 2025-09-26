@@ -22,7 +22,11 @@ def allocations_index(request):
 
     if user_id:
         jobs = jobs.filter(user_id=user_id)
-    if status:
+
+    if status == 'all':
+       pass
+        
+    elif status:
         jobs = jobs.filter(status=status)
 
     # Pagination

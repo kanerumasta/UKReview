@@ -51,7 +51,7 @@
       {% endfor %}
     </select>
   <select name="status" class="border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
-    <option value="">All Status</option>
+    <option value="all">All Status</option>
     {% for s, label in status_choices %}
         <option value="{{ s }}" {% if selected_status == s %}selected{% endif %}>{{ label }}</option>
     {% endfor %}

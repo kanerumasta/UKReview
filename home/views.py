@@ -10,12 +10,12 @@ from django.db.models import Count
 def home(request):
     batch = Batch.objects.order_by("-created_at").first()
 
-    completed_jobs = ProvisionJob.objects.filter(status="completed")
+    completed_jobs = ProvisionJob.objects.filter(status="completed", provision__batch=batch)
     
     # jobs = ProvisionJob.objects.filter(provision__batch = batch)
-    active_jobs_count = ProvisionJob.objects.filter(status="active").count()
+    active_jobs_count = ProvisionJob.objects.filter(status="active", provision__batch=batch).count()
     completed_jobs_count = completed_jobs.count()
-    onhold_jobs_count = ProvisionJob.objects.filter(status="onhold").count()
+    onhold_jobs_count = ProvisionJob.objects.filter(status="onhold", provision__batch=batch).count()
 
     generations = ReportBatch.objects.filter(batch = batch).order_by('-created_at')
 
@@ -28,7 +28,7 @@ def home(request):
     total_hours = round(total_seconds / 3600, 1)
 
  
-    remaining_jobs_count = ProvisionJob.objects.filter(status = "pending").count()
+    remaining_jobs_count = ProvisionJob.objects.filter(status = "pending", provision__batch=batch).count()
     context = {
         "active_jobs_count": active_jobs_count,
         "completed_jobs_count": completed_jobs_count,

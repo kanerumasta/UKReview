@@ -83,7 +83,7 @@
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.provision.enactment.title }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.provision.title }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.date }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.user.username }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.user.get_fullname }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {% if job.status == "completed" %}
                     <span class="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -137,6 +137,30 @@
 
          
 </form>
+<!-- Preview Modal -->
+<div id="previewModal" class="fixed inset-0 bg-black/10 bg-opacity-50 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-5xl p-6 overflow-y-auto max-h-[80vh]">
+    <h2 class="text-2xl font-bold mb-4">Preview Upload</h2>
+    <p class="mb-4 text-gray-600">Total Rows: <span id="rowCount">0</span></p>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full table-auto border-collapse border border-gray-300 text-sm">
+        <thead class="bg-gray-100" id="previewTableHead"></thead>
+        <tbody id="previewTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="mt-6 flex justify-end gap-3">
+      <button id="cancelPreview" type="button" 
+              class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
+      <button id="confirmUpload" type="button" 
+              class="px-4 py-2 rounded bg-green-500 text-white hover:bg-green-600">Confirm Upload</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 
 <script>
 const dropzone = document.getElementById("dropzone");
@@ -145,56 +169,109 @@ const fileName = document.getElementById("fileName");
 const uploadForm = document.getElementById("uploadForm");
 const loader = document.getElementById("loader");
 
+// Modal elements
+const previewModal = document.getElementById("previewModal");
+const previewTableHead = document.getElementById("previewTableHead");
+const previewTableBody = document.getElementById("previewTableBody");
+const rowCountEl = document.getElementById("rowCount");
+const cancelPreview = document.getElementById("cancelPreview");
+const confirmUpload = document.getElementById("confirmUpload");
+
+let pendingFile = null;
+
 // Click to open file dialog
 dropzone.addEventListener("click", () => fileInput.click());
 
-// Show selected file name and confirm upload
-fileInput.addEventListener("change", () => {
-    if (fileInput.files.length > 0) {
-        fileName.textContent = `📂 ${fileInput.files[0].name}`;
-        fileName.classList.remove("hidden");
-
-        const confirmUpload = confirm(`Are you sure you want to upload "${fileInput.files[0].name}"?`);
-        if (confirmUpload) {
-            loader.classList.remove("hidden"); // show loader
-            uploadForm.submit(); // submit form
-        } else {
-            fileInput.value = "";
-            fileName.classList.add("hidden");
-        }
-    }
-});
+fileInput.addEventListener("change", handleFile);
 
 // Drag & drop
 dropzone.addEventListener("dragover", e => {
-    e.preventDefault();
-    dropzone.classList.add("border-blue-500", "bg-blue-50");
+  e.preventDefault();
+  dropzone.classList.add("border-blue-500", "bg-blue-50");
 });
 
 dropzone.addEventListener("dragleave", () => {
-    dropzone.classList.remove("border-blue-500", "bg-blue-50");
+  dropzone.classList.remove("border-blue-500", "bg-blue-50");
 });
 
 dropzone.addEventListener("drop", e => {
-    e.preventDefault();
-    dropzone.classList.remove("border-blue-500", "bg-blue-50");
+  e.preventDefault();
+  dropzone.classList.remove("border-blue-500", "bg-blue-50");
 
-    if (e.dataTransfer.files.length > 0) {
-        fileInput.files = e.dataTransfer.files;
-        fileName.textContent = `📂 ${fileInput.files[0].name}`;
-        fileName.classList.remove("hidden");
-
-        const confirmUpload = confirm(`Are you sure you want to upload "${fileInput.files[0].name}"?`);
-        if (confirmUpload) {
-            loader.classList.remove("hidden"); // show loader
-            uploadForm.submit();
-        } else {
-            fileInput.value = "";
-            fileName.classList.add("hidden");
-        }
-    }
+  if (e.dataTransfer.files.length > 0) {
+    fileInput.files = e.dataTransfer.files;
+    handleFile();
+  }
 });
+
+function handleFile() {
+  if (fileInput.files.length > 0) {
+    pendingFile = fileInput.files[0];
+    fileName.textContent = `📂 ${pendingFile.name}`;
+    fileName.classList.remove("hidden");
+
+    // Read file with SheetJS
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+      if (rows.length > 0) {
+        // Show row count
+        rowCountEl.textContent = rows.length - 1; // exclude header
+
+        // Build table header
+        previewTableHead.innerHTML = "";
+        const headerRow = document.createElement("tr");
+        rows[0].forEach(col => {
+          const th = document.createElement("th");
+          th.textContent = col;
+          th.className = "px-3 py-2 border border-gray-300";
+          headerRow.appendChild(th);
+        });
+        previewTableHead.appendChild(headerRow);
+
+        // Build table body (limit rows preview)
+        previewTableBody.innerHTML = "";
+        rows.slice(1, 21).forEach(row => {  // show first 20 rows
+          const tr = document.createElement("tr");
+          row.forEach(cell => {
+            const td = document.createElement("td");
+            td.textContent = cell ?? "";
+            td.className = "px-3 py-2 border border-gray-300";
+            tr.appendChild(td);
+          });
+          previewTableBody.appendChild(tr);
+        });
+      }
+
+      // Show modal
+      previewModal.classList.remove("hidden");
+      previewModal.classList.add("flex");
+    };
+    reader.readAsArrayBuffer(pendingFile);
+  }
+}
+
+// Cancel preview
+cancelPreview.addEventListener("click", () => {
+  previewModal.classList.add("hidden");
+  fileInput.value = "";
+  fileName.classList.add("hidden");
+  pendingFile = null;
+});
+
+// Confirm upload
+confirmUpload.addEventListener("click", () => {
+  previewModal.classList.add("hidden");
+  loader.classList.remove("hidden");
+  uploadForm.submit();
+});
+
 </script>
+
 
 
 {% endblock %}

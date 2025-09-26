@@ -74,7 +74,7 @@
         </select>
     </div>
 
-    <canvas id="jobsOverviewChart" class="h-64 w-full"></canvas>
+    <canvas id="jobsOverviewChart" class="h-48 w-full"></canvas>
 </div>
 
     
@@ -119,7 +119,7 @@
                                 <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">{{ job.status }}</span>
                             {% endif %}
                         </td> -->
-                        <td class="px-4 py-3 capitalize">{{ report.created_by }}</td>
+                        <td class="px-4 py-3 capitalize">{{ report.created_by.get_fullname }}</td>
                         <td class="px-4 py-3 capitalize">{{ report.batch_type }}</td>
                         <td class="px-4 py-3">{{ report.created_at|date:"M d, Y h:i A"|default:"-" }}</td>
                         <td class="px-4 py-3">{{ report.file.name|basename }}</td>
@@ -179,7 +179,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if(jobsChart) jobsChart.destroy();  // Destroy previous chart
 
         jobsChart = new Chart(ctx, {
-            type: 'bar',  // <-- Change to bar chart
+            type: 'bar',  
             data: {
                 labels: data.labels,
                 datasets: [{
