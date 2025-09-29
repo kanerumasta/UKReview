@@ -16,6 +16,7 @@ from django.core.cache import cache
 
 
 
+
 def jobs_index(request):
     # assignment = EnactmentAssignment.objects.filter(user=request.user, status = 'active').first()
     jobs = []
@@ -325,6 +326,7 @@ def edit_defect_log(request, job_id):
         if "screenshot" in request.FILES:
             defect.screenshot = request.FILES["screenshot"]
         defect.save()
+        messages.success(request,'Defect log saved successfully.')
 
         return redirect("job_detail", job_id=job_id)
 

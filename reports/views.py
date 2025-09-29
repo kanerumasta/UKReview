@@ -19,6 +19,7 @@ from django.core.files import File
 import tempfile
 from datetime import datetime
 from .models import ReportBatch
+from django.contrib import messages
  
 def reports_view(request):
     batches = Batch.objects.all().order_by("-created_at")
@@ -503,6 +504,7 @@ def edit_defect_log(request, defect_id):
             defect.screenshot = request.FILES["screenshot"]
 
         defect.save()
+        messages.success(request, "Defect log saved successfully")
 
         # Redirect to reports page or job detail if you want
         return redirect("reports_index")  # change "reports" to your desired route name

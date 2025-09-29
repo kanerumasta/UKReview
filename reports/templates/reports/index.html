@@ -2,6 +2,29 @@
 {% load math_extras %}
 {% block content %}
 
+{% if messages %}
+<div id="message-container" class="max-w-3xl mx-auto mt-6">
+    {% for message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-white
+                {% if message.tags == 'error' %}bg-red-500{% endif %}
+                {% if message.tags == 'success' %}bg-green-500{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    // Auto-hide messages after 3 seconds (3000ms)
+    setTimeout(() => {
+        const container = document.getElementById('message-container');
+        if (container) {
+            container.style.transition = "opacity 0.5s";
+            container.style.opacity = 0;
+            setTimeout(() => container.remove(), 500); // remove after fade out
+        }
+    }, 3000);
+</script>
+{% endif %}
 <div class="p-6" x-data="{ tab: 'summary',editMode: false,
     openForm: false,
     
