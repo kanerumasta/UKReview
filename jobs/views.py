@@ -50,7 +50,6 @@ def allocate_enactment(request):
         provisions__jobs__user__isnull=True
     ).distinct().first()
 
-    print(enactment)
 
     if not enactment:
         return JsonResponse({"error": "No enactments with pending jobs available."}, status=400)
@@ -71,7 +70,6 @@ def allocate_enactment(request):
         user__isnull=True,
         enactment_assignment__isnull=True
     ).values_list('id', flat=True)[:max_job_count]
-    print(job_ids)
 
     ProvisionJob.objects.filter(id__in=job_ids).update(
         user=request.user,
@@ -85,7 +83,6 @@ def allocate_enactment(request):
 
 @csrf_exempt
 def start_job(request, job_id):
-    print('here')
     if request.method == "POST":
         try:
           
@@ -109,9 +106,7 @@ def start_job(request, job_id):
         
 @csrf_exempt
 def hold(request, job_id):
-    print('HEREEE')
     if request.method == "POST":
-        print(request.POST)
         job = get_object_or_404(ProvisionJob, id = job_id)
         last_session = job.sessions.filter(ended_at=None).first()
         if last_session:
@@ -129,7 +124,6 @@ def hold(request, job_id):
 def submit_job(request, job_id):
     if request.method == "POST":
         submit_action = request.POST.get('submit_action','go_back')
-        print(request.POST)
 
         job = get_object_or_404(ProvisionJob, id = job_id)
 
@@ -226,7 +220,6 @@ def submit_job(request, job_id):
                     user__isnull=True,
                     enactment_assignment__isnull=True
                 ).values_list('id', flat=True)[:max_job_count]
-                print(job_ids)
 
                 ProvisionJob.objects.filter(id__in=job_ids).update(
                     user=request.user,
@@ -263,7 +256,7 @@ def job_detail(request, job_id):
     job.save()
     
 
-    defect_logs = DefectLog.objects.filter(provision_job=job)
+    defect_logs = DefectLog.objects.filter(provision_job=job).order_by('id')
 
     for defect in defect_logs:
         if defect.screenshot:
@@ -287,7 +280,6 @@ def job_detail(request, job_id):
 
 def add_defect_log(request, job_id):
     if request.method == "POST":
-        print(request.POST)
         # Get the job associated with the defect log
         job = get_object_or_404(ProvisionJob, id=job_id, user=request.user)
 

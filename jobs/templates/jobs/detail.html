@@ -50,9 +50,7 @@
                     screenshotUrl: null
                 }
 }">
-<!-- <pre class="text-sm text-gray-600 bg-gray-100 p-2 rounded mt-4">
-    <code x-text="JSON.stringify(defectToDelete, null, 2)"></code>
-</pre> -->
+
 <div x-show="loading" class="flex items-center justify-center w-full rounded">
          <div class="w-full h-2 overflow-hidden">
         <div 
@@ -115,6 +113,7 @@
                           >
                             <!-- Category -->
                            <!-- Category -->
+                            <input type="hidden" :value="selectedDefect.id" name="defect_id"/>
                         <div>
                             <label class="block text-sm font-medium">Category <span class="text-red-400">*</span></label>
                             <select required id="category" name="category"
@@ -140,7 +139,8 @@
                                         class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
 
                                     <!-- Placeholder option -->
-                                    <option value="" disabled :selected="!selectedDefect.check_type">Select a check type</option>
+                                    
+                                    <option value="" disabled>Select a check type</option>
 
                                     <!-- Loop through checkTypes -->
                                     <template x-for="option in checkTypes" :key="option.check_type">
@@ -321,7 +321,7 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         {% for defect in defect_logs %}
                         <tr>
-                            <td class="px-6 py-2">{{ defect.id }}</td>
+                            <td class="px-6 py-2 whitespace-nowrap">{{ defect.id }}</td>
                             <td class="px-6 py-2">{{ defect.get_category_display }}</td>
                             <td class="px-6 py-2">{{ defect.check_type }}</td>
                             <td class="px-6 py-2">{{ defect.severity_level }}</td>
@@ -342,11 +342,17 @@
                                <button 
                                
                                 title="Edit"
-                                @click="
+                               @click="
                                     editMode = true;
                                     selectedDefect.id = '{{ defect.id }}';
                                     selectedDefect.category = '{{ defect.category }}';
+
+                                    // Force checkTypes update based on category
+                                    checkTypes = defectOptions[selectedDefect.category] || [];
+
+                                    // Now safely set the check_type
                                     selectedDefect.check_type = '{{ defect.check_type }}';
+
                                     selectedDefect.severity_level = '{{ defect.severity_level }}';
                                     selectedDefect.issue_description = `{{ defect.issue_description|escapejs }}`;
                                     selectedDefect.expected_outcome = `{{ defect.expected_outcome|escapejs }}`;
@@ -354,12 +360,9 @@
                                     selectedDefect.error_count = `{{ defect.error_count }}`;
                                     selectedDefect.comments = `{{ defect.comments|escapejs }}`;
                                     selectedDefect.screenshotUrl = '{% if defect.screenshot %}{{ defect.screenshot_url }}{% endif %}';
-                                    $nextTick(() => {
-                                        selectedDefect.check_type = '{{ defect.check_type }}';
-                                    });
-                                   
                                     selectedDefect.preview = null;
                                 "
+
                                 class="text-sm rounded-md py-2 px-3 my-2 hover:bg-blue-200 hover:text-blue-500 text-blue-300 hover:font-semibold cursor-pointer"
                             >
                                 <i class="bi bi-pencil-fill"></i>
