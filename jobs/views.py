@@ -319,6 +319,7 @@ def edit_defect_log(request, job_id):
         defect.expected_outcome = request.POST.get("expected_outcome", "")
         defect.actual_outcome = request.POST.get("actual_outcome", "")
         defect.comments = request.POST.get("comments", "")
+        defect.error_count = request.POST.get("error_count", "")
         if "screenshot" in request.FILES:
             defect.screenshot = request.FILES["screenshot"]
         defect.save()

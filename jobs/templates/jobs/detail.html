@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 
 {% block content %}
-
 {% if messages %}
-<div id="message-container" class="w-full px-6 mt-6">
+<div id="message-container" class="min-w-[500px] px-6 mt-6 absolute top-12 left-1/2 -translate-x-1/2 z-100">
     {% for message in messages %}
     <div class="mb-4 px-4 py-3 rounded-lg text-black
                 {% if message.tags == 'error' %}bg-red-300{% endif %}
@@ -26,7 +25,7 @@
 </script>
 {% endif %}
 
-<div x-data="{ 
+<div class="" x-data="{ 
                 loading:false,
                 openForm: true,
                 editMode:false,
@@ -51,6 +50,7 @@
                 }
 }">
 
+
 <div x-show="loading" class="flex items-center justify-center w-full rounded">
          <div class="w-full h-2 overflow-hidden">
         <div 
@@ -60,6 +60,7 @@
         </div>
     </div>
 <div class="p-6">
+ 
 
      <div class="flex items-center justify-between mb-4">
         <!-- Back Button -->
@@ -310,6 +311,9 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actual Outcome</th>
                             </template>
                             <template x-if="!openForm">
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Count Per Document</th>
+                            </template>
+                            <template x-if="!openForm">
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Comments</th>
                             </template>
                           
@@ -333,6 +337,9 @@
                             </template>
                             <template x-if="!openForm">
                                 <td class="px-6 py-2">{{ defect.actual_outcome }}</td>
+                            </template>
+                            <template x-if="!openForm">
+                                <td class="px-6 py-2">{{ defect.error_count }}</td>
                             </template>
                             <template x-if="!openForm">
                                 <td class="px-6 py-2">{{ defect.comments|truncatewords:8 }}</td>
