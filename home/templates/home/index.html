@@ -12,6 +12,15 @@
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-5 mb-8 gap-4">
+		<div class="bg-white rounded-2xl shadow p-5 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                <i class="bi bi-clock-history text-xl"></i>
+            </div>
+            <div>
+                <p class="text-gray-500 text-sm">Total Jobs</p>
+                <p class="text-xl font-bold text-gray-800">{{ total_jobs }}</p>
+            </div>
+        </div>
         <div class="bg-white rounded-2xl shadow p-5 flex items-center gap-4">
             <div class="p-3 rounded-full bg-blue-100 text-blue-600">
                 <i class="bi bi-grid-fill text-xl"></i>
@@ -48,15 +57,7 @@
                 <p class="text-xl font-bold text-gray-800">{{ onhold_jobs_count }}</p>
             </div>
         </div>
-        <div class="bg-white rounded-2xl shadow p-5 flex items-center gap-4">
-            <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                <i class="bi bi-clock-history text-xl"></i>
-            </div>
-            <div>
-                <p class="text-gray-500 text-sm">Total Hours</p>
-                <p class="text-xl font-bold text-gray-800">{{ total_hours }}</p>
-            </div>
-        </div>
+        
     </div>
 
     <!-- Charts + Productivity -->
@@ -81,11 +82,10 @@
 
         <!-- Productivity Chart Placeholder -->
         <div class="bg-white rounded-2xl shadow p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Productivity</h2>
-            <div class="h-64 flex items-center justify-center text-gray-400 border border-dashed rounded-lg">
-                📈 Chart Placeholder
-            </div>
-        </div>
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Productivity</h2>
+	
+    <canvas id="productivityChart" class="h-64 w-full"></canvas>
+</div>
     </div>
 
     <!-- Recent Jobs Table -->
@@ -162,7 +162,6 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 </script>
-
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const ctx = document.getElementById('jobsOverviewChart').getContext('2d');
@@ -179,15 +178,19 @@ document.addEventListener("DOMContentLoaded", function() {
         if(jobsChart) jobsChart.destroy();  // Destroy previous chart
 
         jobsChart = new Chart(ctx, {
-            type: 'bar',  
+            type: 'line',   // ✅ switched from 'bar' to 'line'
             data: {
                 labels: data.labels,
                 datasets: [{
                     label: 'Completed Jobs',
                     data: data.counts,
-                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                    borderColor: 'rgba(59, 130, 246, 1)',
-                    borderWidth: 1,
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',  // lighter fill
+                    borderColor: 'rgba(59, 130, 246, 1)',        // line color
+                    borderWidth: 2,
+                    tension: 0.3,   // ✅ smooth curves
+                    fill: true,     // ✅ area under the line shaded
+                    pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                    pointRadius: 4
                 }]
             },
             options: {
@@ -195,6 +198,11 @@ document.addEventListener("DOMContentLoaded", function() {
                 plugins: {
                     legend: { display: true },
                     tooltip: { mode: 'index', intersect: false }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
                 },
                 scales: {
                     x: { 
@@ -221,5 +229,55 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const ctxProd = document.getElementById('productivityChart').getContext('2d');
+    const productivityData = JSON.parse('{{ productivity_data|escapejs }}');
+
+    const labels = productivityData.map(d => d.username);
+    const completed = productivityData.map(d => d.completed_jobs);
+    const remaining = productivityData.map(d => d.remaining_quota);
+
+    new Chart(ctxProd, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Completed Jobs',
+                    data: completed,
+                    backgroundColor: 'rgba(34,197,94,0.7)',
+                    borderColor: 'rgba(34,197,94,1)',
+                    borderWidth: 1
+                },
+              
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' },
+                datalabels: {
+                    color: '#111',
+                    anchor: 'center',
+                    align: 'center',
+                    formatter: function(value) {
+                        return value > 0 ? value : '';
+                    }
+                }
+            },
+            scales: {
+                x: { beginAtZero: true },
+                y: { beginAtZero: true }
+            }
+        },
+        plugins: [ChartDataLabels]  // ✅ enable datalabels
+    });
+});
+</script>
+
+
 
 {% endblock %}

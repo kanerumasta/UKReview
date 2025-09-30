@@ -124,7 +124,12 @@
                     <form method="POST" action="{% url 'start_job' job.id %}" @submit="loading = true">
                         {% csrf_token %}
                         <button type="submit" class="cursor-pointer bg-blue-400 text-white px-3 py-1 rounded hover:bg-green-600 transition" title="Start">
-                            <i class="bi bi-play-fill"></i> Start
+                            <i class="bi bi-play-fill"></i> 
+                            {%if job.status == 'onhold'%}
+                            Resume
+                        {%else%}
+                            Start
+                            {%endif%}
                         </button>
                     </form>
                

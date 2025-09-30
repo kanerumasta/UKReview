@@ -47,7 +47,7 @@
     <select name="user" class="border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
       <option value="">All Users</option>
       {% for u in users %}
-      <option value="{{ u.id }}" {% if selected_user == u.id|stringformat:'s' %}selected{% endif %}>{{ u.username }}</option>
+      <option value="{{ u.id }}" {% if selected_user == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_fullname|default:u.username }}</option>
       {% endfor %}
     </select>
   <select name="status" class="border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
@@ -154,8 +154,11 @@
         <h2 class="text-lg font-bold mb-4 text-gray-700">Reallocate Jobs To</h2>
         <label class="block mb-2 text-gray-600 font-medium">Select User:</label>
         <select name="reassign_to" class="w-full border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none mb-4">
-          {% for u in users %}
-          <option value="{{ u.id }}">{{ u.username }}</option>
+          {% for u in users.exc %}
+            {% if u.id != request.user.id %}
+      <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+    {% endif %}
+
           {% endfor %}
         </select>
         <div class="flex justify-end space-x-2">

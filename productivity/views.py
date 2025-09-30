@@ -114,11 +114,17 @@ def export_to_excel(request):
         ws.cell(row=row_num, column=2, value=user.total_jobs_assigned)
         ws.cell(row=row_num, column=3, value=user.total_jobs_completed)
         ws.cell(row=row_num, column=4, value=user.total_enactment_allocated)
-        ws.cell(row=row_num, column=5, value=user.total_hours)
-        ws.cell(row=row_num, column=6, value=user.average_jobs_per_hour)
-        ws.cell(row=row_num, column=7, value=user.effective_quota)
-        ws.cell(row=row_num, column=8, value=user.productivity_ratio)
+        hours_cell = ws.cell(row=row_num, column=5, value=user.total_hours)
+        hours_cell.number_format = "0.00"
 
+        avg_jobs_cell = ws.cell(row=row_num, column=6, value=user.average_jobs_per_hour)
+        avg_jobs_cell.number_format = "0.00"
+
+        quota_cell = ws.cell(row=row_num, column=7, value=user.effective_quota)
+        quota_cell.number_format = "0.00"
+
+        productivity_cell = ws.cell(row=row_num, column=8, value=user.productivity_ratio)
+        productivity_cell.number_format = "0.00"
     # Adjust column width to fit data
     for col in range(1, len(headers) + 1):
         max_length = 0
@@ -133,9 +139,11 @@ def export_to_excel(request):
         adjusted_width = (max_length + 2)
         ws.column_dimensions[column].width = adjusted_width
 
+    date_time = datetime.now().strftime("%m%d%Y_%H%M%S") 
+
     # Create an HTTP response with the Excel file as an attachment
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = 'attachment; filename="user_productivity_report.xlsx"'
+    response["Content-Disposition"] = f'attachment; filename="user_productivity_report_{date_time}.xlsx"'
 
     # Save the workbook to the response
     wb.save(response)

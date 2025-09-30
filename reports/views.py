@@ -197,6 +197,9 @@ def partial_excel_report(request):
         provision_job__status="completed",
         provision_job__is_generated=False
     ).order_by("id")
+    if not jobs.exists():
+        messages.error(request, 'No jobs submitted yet.')
+        return redirect("reports_index")
 
 
     report_batch = ReportBatch.objects.create(created_by = request.user, batch = batch, batch_type = "partial")

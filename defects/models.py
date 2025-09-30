@@ -9,6 +9,7 @@ def defect_log_screenshot_path(instance, filename):
     ext = filename.split('.')[-1]
 
     provision_name = (
+        f"{instance.id}_"
         f"{instance.provision_job.provision.enactment.title}_"
         f"{instance.provision_job.provision.title}_"
         f"{instance.provision_job.date.strftime('%Y%m%d')}"
