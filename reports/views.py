@@ -233,10 +233,8 @@ def full_excel_report(request):
 
     return generate_excel_response(batch, report_batch,jobs, defects, request)
 
-
-def generate_excel_response(batch,report_batch,jobs,defects, request=None):
+def generate_excel_response(batch, report_batch, jobs, defects, request=None):
     template_path = os.path.join(settings.BASE_DIR, "reports", "templates_excel", "output_template.xlsx")
-
     
     greater_five_severity3_defects = defects.filter(severity_level=3, error_count__gt=5)
     greater_ten_severity4_defects = defects.filter(severity_level=4, error_count__gt=10)
@@ -275,69 +273,70 @@ def generate_excel_response(batch,report_batch,jobs,defects, request=None):
 
     if "Error Type Highlights" in wb.sheetnames:
         ws4 = wb["Error Type Highlights"]
-    
-
 
     table1_data = []
     table1_start_row = 6
-    for defect in greater_five_severity3_defects:
-        url = defect.get_absolute_url(request) if defect.screenshot and request else ""
-        table1_data.append([
-            defect.id,
-            defect.provision_job.enactment_assignment.enactment.title,
-            defect.provision_job.provision.title,
-            defect.provision_job.date.strftime("%m/%d/%Y").lstrip("0").replace("/0", "/"),
-            defect.category,
-            defect.check_type,
-            defect.issue_description,
-            defect.expected_outcome,
-            defect.actual_outcome,
-            url,
-            defect.severity_level,
-         
-            defect.error_count
-        ])
+            # Insert rows only if there are data to insert
     thin_border = Side(style="thin", color="000000")
     thick_border = Side(style="thick", color="000000")
-    ws4.insert_rows(6,len(table1_data))
+    if greater_five_severity3_defects.exists():  # Check if the queryset has any data
+        for defect in greater_five_severity3_defects:
+            url = defect.get_absolute_url(request) if defect.screenshot and request else ""
+            table1_data.append([
+                defect.id,
+                defect.provision_job.enactment_assignment.enactment.title,
+                defect.provision_job.provision.title,
+                defect.provision_job.date.strftime("%m/%d/%Y").lstrip("0").replace("/0", "/"),
+                defect.category,
+                defect.check_type,
+                defect.issue_description,
+                defect.expected_outcome,
+                defect.actual_outcome,
+                url,
+                defect.severity_level,
+                defect.error_count
+            ])
+
+        if table1_data:
+            ws4.insert_rows(6, len(table1_data))
+
+            for i, row_data in enumerate(table1_data):
+                for idx, j in enumerate(row_data):
+                    new_cell = ws4.cell(row=i+table1_start_row, column=idx+2, value=j)
+                    new_cell.border = Border(top=thin_border, left=thin_border, right=thin_border, bottom=thin_border)
+
+            ws4.row_dimensions[table1_start_row + len(table1_data) + 4].height = ws4.row_dimensions[5].height
 
     table2_data = []
-    for defect in greater_ten_severity4_defects:
-        url = defect.get_absolute_url(request) if defect.screenshot and request else ""
-        table2_data.append([
-            defect.id,
-            defect.provision_job.enactment_assignment.enactment.title,
-            defect.provision_job.provision.title,
-            defect.provision_job.date.strftime("%m/%d/%Y").lstrip("0").replace("/0", "/"),
-            defect.category,
-            defect.check_type,
-            defect.issue_description,
-            defect.expected_outcome,
-            defect.actual_outcome,
-            url,
-             defect.severity_level,
-         
-            defect.error_count
-        ])
+    if greater_ten_severity4_defects.exists():  # Check if the queryset has any data
+        for defect in greater_ten_severity4_defects:
+            url = defect.get_absolute_url(request) if defect.screenshot and request else ""
+            table2_data.append([
+                defect.id,
+                defect.provision_job.enactment_assignment.enactment.title,
+                defect.provision_job.provision.title,
+                defect.provision_job.date.strftime("%m/%d/%Y").lstrip("0").replace("/0", "/"),
+                defect.category,
+                defect.check_type,
+                defect.issue_description,
+                defect.expected_outcome,
+                defect.actual_outcome,
+                url,
+                defect.severity_level,
+                defect.error_count
+            ])
+
+        # Insert rows only if there are data to insert
+        if table2_data:
+            table2_data_start = len(table1_data) + 11
 
 
+            for i, row_data in enumerate(table2_data):
+                for idx, j in enumerate(row_data):
+                    new_cell = ws4.cell(row=i + table2_data_start, column=idx + 2, value=j)
+                    new_cell.border = Border(top=thin_border, left=thin_border, right=thin_border, bottom=thin_border)
 
-
-    for i, row_data in enumerate(table1_data):
-        for idx, j in enumerate(row_data):
-            new_cell = ws4.cell(row=i+table1_start_row, column=idx+2, value=j)
-            new_cell.border = Border(top=thin_border, left=thin_border, right=thin_border, bottom=thin_border)
-            
-
-    ws4.row_dimensions[table1_start_row+len(table1_data)+4].height = ws4.row_dimensions[5].height
-
-    table2_data_start = len(table1_data) + 11
-   
-    for i, row_data in enumerate(table2_data):
-        for idx, j in enumerate(row_data):
-            new_cell = ws4.cell(row=i+table2_data_start, column=idx+2, value=j)
-            new_cell.border = Border(top=thin_border, left=thin_border, right=thin_border, bottom=thin_border)
-
+    # Populate Defect Log sheet
     for defect in defects:
         url = defect.get_absolute_url(request) if defect.screenshot and request else ''
         ws1.append([
@@ -358,15 +357,14 @@ def generate_excel_response(batch,report_batch,jobs,defects, request=None):
             defect.comments
         ])
         
-        # get the last row index
+        # Apply hyperlink if URL exists
         row_num = ws1.max_row
-
-        # apply hyperlink and style if URL exists
         if url:
             cell = ws1.cell(row=row_num, column=10)   # column 10 = screenshot column
             cell.hyperlink = url
             cell.font = Font(color="0000FF", underline="single") 
 
+    # Populate Enactments sheet
     for job in jobs:
         review_outcome = "No Defect Found"
         if hasattr(job, "defect_logs") and job.defect_logs.exists():
@@ -374,7 +372,6 @@ def generate_excel_response(batch,report_batch,jobs,defects, request=None):
         elif hasattr(job, "review_outcome_text") and job.review_outcome_text:
             review_outcome = str(job.review_outcome_text)
 
-    
         ws2.append([
             job.filename or "",
             job.provision.enactment.title if job.provision.enactment else "",
@@ -385,7 +382,7 @@ def generate_excel_response(batch,report_batch,jobs,defects, request=None):
             job.remarks
         ])
 
-        # set jobs generated
+    # Mark jobs as generated
     for job in jobs:
         job.is_generated = True
         job.generation_date = timezone.now()
@@ -393,13 +390,10 @@ def generate_excel_response(batch,report_batch,jobs,defects, request=None):
 
     report_batch.jobs.add(*jobs)
 
-
-
-
     # Generate filename
     batch_type = report_batch.batch_type.capitalize()
     batch_title = batch.name.replace(" ", "")
-    date_str = datetime.now().strftime("%d%m%Y")
+    date_str = datetime.now().strftime("%Y%m%d_%H%M")
     filename = f"{batch_type}_{batch_title}_{date_str}.xlsx"
 
     # Create temp file and close immediately so openpyxl can write
@@ -412,7 +406,6 @@ def generate_excel_response(batch,report_batch,jobs,defects, request=None):
     # Save to ReportBatch file
     with open(tmp.name, "rb") as f:
         report_batch.file.save(filename, File(f), save=True)
-
 
     os.remove(tmp.name)
 

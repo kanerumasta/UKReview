@@ -205,11 +205,11 @@ def submit_job(request, job_id):
                     provisions__jobs__user__isnull=True
                 ).distinct().first()
 
-                print(enactment)
+      
 
                 if not enactment:
-                    return JsonResponse({"error": "No enactments with pending jobs available."}, status=400)
-
+                    messages.error(request,'No jobs available.')
+                    return redirect("jobs")
                 # Create assignment
                 assignment = EnactmentAssignment.objects.create(
                     enactment=enactment,
@@ -264,6 +264,10 @@ def job_detail(request, job_id):
     
 
     defect_logs = DefectLog.objects.filter(provision_job=job)
+
+    for defect in defect_logs:
+        if defect.screenshot:
+            defect.screenshot_url = defect.get_absolute_url(request)
     # Build defect options dynamically from DB
     defect_options = {}
     categories = DefectCategory.objects.prefetch_related("options").all()
@@ -277,7 +281,7 @@ def job_detail(request, job_id):
         "job": job,
         "defect_logs": defect_logs,
         "defect_options": defect_options,
-        "active_page":"allocations"
+        "active_page":"jobs"
     }
     return render(request, "jobs/detail.html", context)
 

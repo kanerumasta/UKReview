@@ -17,7 +17,8 @@ from accounts.decorators import manager_required
 def index(request):
 
     try:
-        jobs_list = ProvisionJob.objects.select_related("provision", "user").all()
+        jobs_list = ProvisionJob.objects.select_related("provision", "user").all().order_by('-last_edited')
+
         paginator = Paginator(jobs_list, 10)  # show 10 rows per page
 
         page_number = request.GET.get("page")

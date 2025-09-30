@@ -82,109 +82,172 @@ def index(request):
     return render(request, "productivity/index.html", context)
 
 def export_to_excel(request):
-    try:
-        # --- Reuse your filters ---
-        jobs = ProvisionJob.objects.select_related(
-            "user", "provision", "enactment_assignment__enactment"
-        ).prefetch_related("sessions").order_by('-last_edited')
+    # Get user productivity data
+    users = get_user_productivity()
 
-        start_date = request.GET.get("start_date")
-        end_date = request.GET.get("end_date")
-        user_id = request.GET.get("user_id")
+    # Create an in-memory workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Productivity Report"
 
-        if user_id:
+    # Define the headers
+    headers = [
+        "Username",
+        "Total Jobs Assigned",
+        "Total Jobs Completed",
+        "Total Enactments Allocated",
+        "Total Time Spent (hours)",
+        "Average Jobs per Hour",
+        "Effective Quota",
+        "Productivity Ratio (%)",
+    ]
+
+    # Add headers to the first row
+    for col_num, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+
+    # Add data for each user
+    for row_num, user in enumerate(users, start=2):
+        ws.cell(row=row_num, column=1, value=user.username)
+        ws.cell(row=row_num, column=2, value=user.total_jobs_assigned)
+        ws.cell(row=row_num, column=3, value=user.total_jobs_completed)
+        ws.cell(row=row_num, column=4, value=user.total_enactment_allocated)
+        ws.cell(row=row_num, column=5, value=user.total_hours)
+        ws.cell(row=row_num, column=6, value=user.average_jobs_per_hour)
+        ws.cell(row=row_num, column=7, value=user.effective_quota)
+        ws.cell(row=row_num, column=8, value=user.productivity_ratio)
+
+    # Adjust column width to fit data
+    for col in range(1, len(headers) + 1):
+        max_length = 0
+        column = get_column_letter(col)
+        for row in range(1, len(users) + 2):  # Include header row
+            cell = ws[column + str(row)]
             try:
-                jobs = jobs.filter(user__id=int(user_id))
-            except ValueError:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
                 pass
+        adjusted_width = (max_length + 2)
+        ws.column_dimensions[column].width = adjusted_width
 
-        if start_date:
-            try:
-                start = datetime.strptime(start_date, "%Y-%m-%d").date()
-                jobs = jobs.filter(date_assigned__date__gte=start)
-            except Exception as e:
-                print("Start date filter error:", e)
+    # Create an HTTP response with the Excel file as an attachment
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = 'attachment; filename="user_productivity_report.xlsx"'
 
-        if end_date:
-            try:
-                end = datetime.strptime(end_date, "%Y-%m-%d").date()
-                jobs = jobs.filter(date_assigned__date__lte=end)
-            except Exception as e:
-                print("End date filter error:", e)
+    # Save the workbook to the response
+    wb.save(response)
+
+    return response
 
 
 
+# def export_to_excel(request):
+    # try:
+    #     # --- Reuse your filters ---
+    #     jobs = ProvisionJob.objects.select_related(
+    #         "user", "provision", "enactment_assignment__enactment"
+    #     ).prefetch_related("sessions").order_by('-last_edited')
 
-        # --- Create workbook ---
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "User Productivity Report"
+    #     start_date = request.GET.get("start_date")
+    #     end_date = request.GET.get("end_date")
+    #     user_id = request.GET.get("user_id")
 
-        # --- Header row ---
-        headers = [
-            'Date Assigned',
-            'User ID',
-            'User Name',
-            'Enactment',
-            'Provision Ref(s)',
-            'Start Date',
-            'End Date',
-            'Time Spent (hrs)',
-            'Efficiency (%)'
-        ]
-        header_fill = PatternFill(start_color="FFD966", end_color="FFD966", fill_type="solid")
-        for col_num, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col_num, value=header)
-            cell.font = Font(bold=True, color="000000")
-            cell.fill = header_fill
+    #     if user_id:
+    #         try:
+    #             jobs = jobs.filter(user__id=int(user_id))
+    #         except ValueError:
+    #             pass
 
-        # --- Data rows ---
-        row_num = 2
-        for job in jobs:
-            try:
-                time_spent = round(job.total_time_minutes / 60, 2) if job.total_time_minutes else 0
-                hourly_quota = 50
-                output = 1 if job.status == "completed" else 0
-                efficiency = round((output / (hourly_quota * time_spent)) * 100, 2) if time_spent > 0 else 0
+    #     if start_date:
+    #         try:
+    #             start = datetime.strptime(start_date, "%Y-%m-%d").date()
+    #             jobs = jobs.filter(date_assigned__date__gte=start)
+    #         except Exception as e:
+    #             print("Start date filter error:", e)
 
-                if job.enactment_assignment and job.enactment_assignment.enactment:
-                    enactment_title = job.enactment_assignment.enactment.title
-                elif job.provision and hasattr(job.provision, "enactment") and job.provision.enactment:
-                    enactment_title = job.provision.enactment.title
-                else:
-                    enactment_title = None
+    #     if end_date:
+    #         try:
+    #             end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    #             jobs = jobs.filter(date_assigned__date__lte=end)
+    #         except Exception as e:
+    #             print("End date filter error:", e)
 
-                ws.cell(row=row_num, column=1, value=job.date_assigned.strftime("%m/%d/%Y") if job.date_assigned else "")
-                ws.cell(row=row_num, column=2, value=job.user.username if job.user else "")
-                ws.cell(row=row_num, column=3, value=job.user.get_full_name() if job.user else "")
-                ws.cell(row=row_num, column=4, value=enactment_title or "")
-                ws.cell(row=row_num, column=5, value=job.provision.title if job.provision else "")
-                ws.cell(row=row_num, column=6, value=job.start_date.strftime("%m/%d/%Y %I:%M %p") if job.start_date else "")
-                ws.cell(row=row_num, column=7, value=job.end_date.strftime("%m/%d/%Y %I:%M %p") if job.end_date else "")
-                ws.cell(row=row_num, column=8, value=time_spent)
-                ws.cell(row=row_num, column=9, value=f"{efficiency}%")
 
-                row_num += 1
-            except Exception as e:
-                print(f"Error exporting job {job.id}: {e}")
-                continue
 
-        # --- Auto-fit columns ---
-        for col_num, _ in enumerate(headers, 1):
-            column_letter = get_column_letter(col_num)
-            ws.column_dimensions[column_letter].auto_size = True
 
-        # --- Dynamic filename ---
-        now = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"user_productivity_report_{now}.xlsx"
+    #     # --- Create workbook ---
+    #     wb = openpyxl.Workbook()
+    #     ws = wb.active
+    #     ws.title = "User Productivity Report"
 
-        response = HttpResponse(
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        response["Content-Disposition"] = f'attachment; filename="{filename}"'
-        wb.save(response)
-        return response
+    #     # --- Header row ---
+    #     headers = [
+    #         'Date Assigned',
+    #         'User ID',
+    #         'User Name',
+    #         'Enactment',
+    #         'Provision Ref(s)',
+    #         'Start Date',
+    #         'End Date',
+    #         'Time Spent (hrs)',
+    #         'Efficiency (%)'
+    #     ]
+    #     header_fill = PatternFill(start_color="FFD966", end_color="FFD966", fill_type="solid")
+    #     for col_num, header in enumerate(headers, 1):
+    #         cell = ws.cell(row=1, column=col_num, value=header)
+    #         cell.font = Font(bold=True, color="000000")
+    #         cell.fill = header_fill
 
-    except Exception as e:
-        print("Export to Excel error:", e)
-        return HttpResponse("Error generating Excel file", status=500)
+    #     # --- Data rows ---
+    #     row_num = 2
+    #     for job in jobs:
+    #         try:
+    #             time_spent = round(job.total_time_minutes / 60, 2) if job.total_time_minutes else 0
+    #             hourly_quota = 50
+    #             output = 1 if job.status == "completed" else 0
+    #             efficiency = round((output / (hourly_quota * time_spent)) * 100, 2) if time_spent > 0 else 0
+
+    #             if job.enactment_assignment and job.enactment_assignment.enactment:
+    #                 enactment_title = job.enactment_assignment.enactment.title
+    #             elif job.provision and hasattr(job.provision, "enactment") and job.provision.enactment:
+    #                 enactment_title = job.provision.enactment.title
+    #             else:
+    #                 enactment_title = None
+
+    #             ws.cell(row=row_num, column=1, value=job.date_assigned.strftime("%m/%d/%Y") if job.date_assigned else "")
+    #             ws.cell(row=row_num, column=2, value=job.user.username if job.user else "")
+    #             ws.cell(row=row_num, column=3, value=job.user.get_full_name() if job.user else "")
+    #             ws.cell(row=row_num, column=4, value=enactment_title or "")
+    #             ws.cell(row=row_num, column=5, value=job.provision.title if job.provision else "")
+    #             ws.cell(row=row_num, column=6, value=job.start_date.strftime("%m/%d/%Y %I:%M %p") if job.start_date else "")
+    #             ws.cell(row=row_num, column=7, value=job.end_date.strftime("%m/%d/%Y %I:%M %p") if job.end_date else "")
+    #             ws.cell(row=row_num, column=8, value=time_spent)
+    #             ws.cell(row=row_num, column=9, value=f"{efficiency}%")
+
+    #             row_num += 1
+    #         except Exception as e:
+    #             print(f"Error exporting job {job.id}: {e}")
+    #             continue
+
+    #     # --- Auto-fit columns ---
+    #     for col_num, _ in enumerate(headers, 1):
+    #         column_letter = get_column_letter(col_num)
+    #         ws.column_dimensions[column_letter].auto_size = True
+
+    #     # --- Dynamic filename ---
+    #     now = datetime.now().strftime("%Y%m%d_%H%M%S")
+    #     filename = f"user_productivity_report_{now}.xlsx"
+
+    #     response = HttpResponse(
+    #         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    #     )
+    #     response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    #     wb.save(response)
+    #     return response
+
+    # except Exception as e:
+    #     print("Export to Excel error:", e)
+    #     return HttpResponse("Error generating Excel file", status=500)

@@ -10,27 +10,27 @@ USER = settings.AUTH_USER_MODEL
 
 
 def report_file_upload_path(instance, filename):
-    """
-    Generates file path like:
-    Partial_Batch4000U_20221225.xlsx
-    """
-    # Get batch type (Partial / Full)
-    batch_type = instance.batch_type.capitalize()  # 'partial' -> 'Partial'
+    # """
+    # Generates file path like:
+    # Partial_Batch4000U_20221225.xlsx
+    # """
+    # # Get batch type (Partial / Full)
+    # batch_type = instance.batch_type.capitalize()  # 'partial' -> 'Partial'
     
-    # Use batch title (from the related Batch model)
-    batch_title = instance.batch.name.replace(" ", "")  # remove spaces for filename
+    # # Use batch title (from the related Batch model)
+    # batch_title = instance.batch.name.replace(" ", "")  # remove spaces for filename
     
-    # Current date
-    date_str = datetime.now().strftime("%Y%m%d %H:%M")
+    # # Current date
+    # date_str = datetime.now().strftime("%Y%m%d %H:%M")
     
-    # Extension from original filename
-    ext = filename.split('.')[-1] if '.' in filename else 'xlsx'
+    # # Extension from original filename
+    # ext = filename.split('.')[-1] if '.' in filename else 'xlsx'
     
-    # Final filename
-    final_filename = f"{batch_type}_{batch_title}_{date_str}.{ext}"
+    # # Final filename
+    # final_filename = f"{batch_type}_{batch_title}_{date_str}.{ext}"
     
     # Optional: store in a folder structure like 'reports/'
-    return os.path.join('reports', final_filename)
+    return os.path.join('reports', filename)
 
 
 class ReportBatch(models.Model):

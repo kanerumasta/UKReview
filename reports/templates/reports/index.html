@@ -565,7 +565,7 @@
               </option>
             {% endfor %}
           </select>
-          <div x-effect="checkTypes = defectOptions[selectedDefect.category] || []"></div>
+          <div x-effect="checkTypes = defectOptions[selectedDefect.category]?.options || []"></div>
         </div>
 
         <!-- Check Type -->

@@ -45,7 +45,9 @@
                     expected_outcome: '',
                     actual_outcome: '',
                     comments: '',
-                    error_count:''
+                    error_count:'',
+                     preview: null,
+                    screenshotUrl: null
                 }
 }">
 <!-- <pre class="text-sm text-gray-600 bg-gray-100 p-2 rounded mt-4">
@@ -89,7 +91,7 @@
     <div class="grid grid-cols-3 gap-4">
         
         <!-- Add Defect Log Section -->
-        <div class="my-8">
+        <div class="">
             <div class="flex justify-between items-center">
                 <h2 x-show="openForm" class="text-xl font-semibold" x-text="editMode ? 'Edit Defect Log' : 'New Defect Log'"></h2>
                 <button  @click="openForm = !openForm"
@@ -185,18 +187,72 @@
                         <textarea id="comments" name="comments" x-model="selectedDefect.comments" rows="1"
                                   class="resize-none block w-full border-gray-300 rounded-md border-2 py-2 px-2"></textarea>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium">Screenshot</label>
-                        <input  accept="image/*" type="file" id="screenshot" name="screenshot"
-                               class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
-                    </div>
-                    <input type="hidden" name="defect_id" :value="selectedDefect.id" />
+                   <div>
+  <label class="block text-sm font-medium">Screenshot</label>
+
+  <!-- Upload Wrapper -->
+  <div 
+    class="mt-2 border-2 border-dashed rounded-lg p-4 hover:bg-blue-100 border-blue-400 text-center cursor-pointer transition"
+    :class="isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-300'"
+    @click="$refs.screenshotInput.click()"
+    @dragover.prevent="isDragging = true"
+    @dragleave.prevent="isDragging = false"
+    @drop.prevent="
+      isDragging = false;
+      const file = $event.dataTransfer.files[0];
+      if (file) {
+        $refs.screenshotInput.files = $event.dataTransfer.files;
+        const reader = new FileReader();
+        reader.onload = (e) => selectedDefect.preview = e.target.result;
+        reader.readAsDataURL(file);
+      }
+    "
+  >
+    <!-- Preview if user selects new image -->
+    <template x-if="selectedDefect.preview">
+      <img :src="selectedDefect.preview" 
+           alt="Preview" 
+           class="mx-auto max-h-40 rounded shadow mb-2"/>
+    </template>
+
+    <!-- Show current screenshot when editing -->
+    <template x-if="editMode && !selectedDefect.preview && selectedDefect.screenshotUrl">
+      <img :src="selectedDefect.screenshotUrl" 
+           alt="Current Screenshot" 
+           class="mx-auto max-h-40 rounded shadow mb-2"/>
+    </template>
+    <p x-show="!selectedDefect.preview && !(editMode && selectedDefect.screenshotUrl)" class="text-5xl text-blue-400"><i class="bi bi-cloud-arrow-up-fill text-blue-400"></i></p>
+    <p class="text-gray-500" x-show="!selectedDefect.preview && !(editMode && selectedDefect.screenshotUrl)">
+      Click to upload or drag & drop an image
+    </p>
+  </div>
+
+  <!-- Hidden file input -->
+  <input 
+    type="file" 
+    accept="image/*" 
+    id="screenshot" 
+    name="screenshot"
+    x-ref="screenshotInput"
+    class="hidden"
+    @change="
+      const file = $event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => selectedDefect.preview = e.target.result;
+        reader.readAsDataURL(file);
+      } else {
+        selectedDefect.preview = null;
+      }
+    "
+  >
+</div>
 
 
                 </div>
 
                 <!-- Submit -->
-                <div class="mt-4">
+                <div class="mt-8">
                     <button type="submit"
                             class=" bg-blue-400 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
                         
@@ -220,7 +276,7 @@
             </form>
         </div>
         <!-- Job Information -->
-        <div :class="openForm ? 'col-span-2' : 'col-span-3'">
+        <div :class="openForm ? 'col-span-2 bg-gray-100 p-3 ' : 'col-span-3'">
             <div class="mb-6  flex gap-4">
                 <div class="space-y-2">               
                      <p class="text-gray-700"><span class="text-black font-semibold">Filename:</span> {{ job.filename }}</p>
@@ -297,9 +353,12 @@
                                     selectedDefect.actual_outcome = `{{ defect.actual_outcome|escapejs }}`;
                                     selectedDefect.error_count = `{{ defect.error_count }}`;
                                     selectedDefect.comments = `{{ defect.comments|escapejs }}`;
+                                    selectedDefect.screenshotUrl = '{% if defect.screenshot %}{{ defect.screenshot_url }}{% endif %}';
                                     $nextTick(() => {
                                         selectedDefect.check_type = '{{ defect.check_type }}';
                                     });
+                                   
+                                    selectedDefect.preview = null;
                                 "
                                 class="text-sm rounded-md py-2 px-3 my-2 hover:bg-blue-200 hover:text-blue-500 text-blue-300 hover:font-semibold cursor-pointer"
                             >
