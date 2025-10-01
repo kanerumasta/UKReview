@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.core.paginator import Paginator
 import random
@@ -73,6 +73,8 @@ def get_user_productivity():
 
 # @cache_page(60 * 5) # Cache the response for 5 minutes
 def index(request):
+    if request.user.role == 'user':
+        return redirect("jobs")
 
     users = get_user_productivity()
 

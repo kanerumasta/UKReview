@@ -3,7 +3,7 @@
         UK Review
     </div>
     <ul class="">
-		
+		 {% if user.role == "manager" %}
 		<li class="duration-150 cursor-pointer ">
 			<a href="{% url 'dashboard' %}" 
 			   class="flex items-center gap-2 p-3 
@@ -11,6 +11,7 @@
 				<i class="bi bi-grid-fill text-gray-500" ></i>Dashboard
 			</a>
 		</li>
+          {% endif %}
         {% if user.role == "manager" %}
          <li class="duration-150 cursor-pointer ">
             <a href="{% url 'dropzone_index' %}" 
@@ -36,7 +37,7 @@
             </a>
         </li>
        {% endif %}
-
+     {% if user.role == "manager" %}
         <li class="duration-150 cursor-pointer ">
             <a href="{% url 'productivity_index' %}" 
                class="flex items-center gap-2 p-3 
@@ -44,6 +45,8 @@
                 <i class="bi bi-bar-chart-fill text-gray-500" ></i> Productivity
             </a>
         </li>
+               {% endif %}
+                    {% if user.role == "manager" %}
         <li class="duration-150 cursor-pointer ">
                 <a href="{% url 'reports_index' %}" 
                 class="flex items-center gap-2 p-3 
@@ -51,6 +54,7 @@
                     <i class="bi bi-clipboard-data-fill"></i> Reports
                 </a>
             </li>
+                   {% endif %}
              {% if user.role == "manager" %}
         <li class="duration-150 cursor-pointer ">
                 <a href="{% url 'settings_index' %}" 

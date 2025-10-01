@@ -12,10 +12,14 @@ from django.contrib.auth import get_user_model
 from django.core.serializers.json import DjangoJSONEncoder
 import json
 from django.utils import timezone
+from accounts.decorators import manager_required
+from django.shortcuts import redirect
 
 USER = get_user_model()
 
 def home(request):
+    if request.user.role == 'user':
+        return redirect("jobs")
     batch_id = request.GET.get("batch_id")
 
     batch = Batch.objects.filter(id=batch_id).first() if batch_id else Batch.objects.order_by("-created_at").first()

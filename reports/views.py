@@ -22,6 +22,8 @@ from .models import ReportBatch
 from django.contrib import messages
  
 def reports_view(request):
+    if request.user.role == 'user':
+        return redirect("jobs")
     batches = Batch.objects.all().order_by("-created_at")
     batch_id = request.GET.get("batch")
     search_query = request.GET.get("search", "")  # search input
