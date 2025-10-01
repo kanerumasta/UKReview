@@ -11,6 +11,19 @@
     <h1 class="text-2xl font-semibold text-gray-800 mb-6">Welcome back, {{ request.user.first_name|default:request.user.username }} 👋</h1>
 
     <!-- Stats Cards -->
+	 <div class="mb-6 flex items-center gap-4">
+  <form method="get" class="flex items-center gap-2">
+    <label for="batch_id" class="text-gray-700 text-sm font-medium">Batch:</label>
+    <select name="batch_id" id="batch_id" class="rounded-lg border border-gray-300 focus:border-blue-500  px-3 py-2 " onchange="this.form.submit()">
+      {% for b in batches %}
+        <option value="{{ b.id }}" {% if selected_batch == b.id|stringformat:"s" %}selected{% endif %}>
+          {{b.name}}
+        </option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
 
 	<div class="">
 		         <h2 class="text-lg font-semibold text-gray-500 mb-3">Jobs Overview</h2>
@@ -172,7 +185,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let jobsChart;
 
     async function fetchJobsData(filter) {
-        const response = await fetch(`/api/jobs-overview/?filter=${filter}`);
+        const response = await fetch(`/api/jobs-overview/?filter=${filter}&batch_id={{selected_batch}}`);
         return await response.json();
     }
 

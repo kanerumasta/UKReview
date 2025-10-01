@@ -9,55 +9,6 @@
         <a href="{% url 'export_to_excel' %}?{{ request.GET.urlencode }}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded shadow">Export To Excel</a>
     </div>
 
-    <!-- Filter Form -->
-    <!-- <form method="GET" class="flex items-center space-x-2 mb-4">
-        <label for="start_date" class="font-medium">Filter by:</label> -->
-        
-        <!-- User dropdown -->
-     <!-- <select name="user_id" id="user_id" class="border rounded px-2 py-1">
-        <option value="">All Users</option>
-        {% for u in users %}
-            <option value="{{ u.id }}" {% if request.GET.user_id == u.id|stringformat:"s" %}selected{% endif %}>
-                {{ u.username }}
-            </option>
-        {% endfor %}
-    </select>
-
-
-        <input type="date" name="start_date" id="start_date" value="{{ request.GET.start_date }}" class="border rounded px-2 py-1">
-        <input type="date" name="end_date" id="end_date" value="{{ request.GET.end_date }}" class="border rounded px-2 py-1">
-        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded">Search</button>
- -->
-
-
-        <!-- Clear filter button -->
-        <!-- <a href="{% url 'productivity_index' %}" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-1 rounded">Clear</a>
-    
-    
-    </form> -->
-
-        <!-- Search Form aligned to Efficiency column -->
-        <!-- <div class="flex justify-end pr-4 mb-2">
-            <form method="GET" class="flex items-center space-x-2" id="searchForm">
-                <input type="text" name="q" value="{{ request.GET.q }}"
-                    placeholder="Search..."
-                    class="border rounded px-2 py-1 w-64"
-                    id="searchInput">
-            </form>
-        </div>
-
-        <script>
-        let debounceTimer;
-        document.getElementById("searchInput").addEventListener("input", function () {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                document.getElementById("searchForm").submit();
-            }, 500); // 500ms delay after typing stops
-        });
-        </script>
-     -->
-
-    <!-- Table -->
     <div class="overflow-x-auto border rounded-lg">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-100 sticky top-0">

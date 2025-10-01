@@ -16,7 +16,11 @@ from django.utils import timezone
 USER = get_user_model()
 
 def home(request):
-    batch = Batch.objects.order_by("-created_at").first()
+    batch_id = request.GET.get("batch_id")
+
+    batch = Batch.objects.filter(id=batch_id).first() if batch_id else Batch.objects.order_by("-created_at").first()
+
+
     period = request.GET.get("period", "hourly") 
 
     completed_jobs = ProvisionJob.objects.filter(status="completed", provision__batch=batch)
@@ -35,8 +39,6 @@ def home(request):
     remaining_jobs_count = ProvisionJob.objects.filter(status="pending", provision__batch=batch).count()
 
     job_settings = JobSettings.objects.first()
-    fulltime_quota = job_settings.quota if job_settings else 0
-    parttime_quota = job_settings.parttime_quota if job_settings else 0
 
 
     users = USER.objects.all()
@@ -60,6 +62,8 @@ def home(request):
         })
     context = {
         "active_jobs_count": active_jobs_count,
+        "batches": Batch.objects.order_by("-created_at"),
+        "selected_batch": batch_id or (batch.id if batch else None),
         "completed_jobs_count": completed_jobs_count,
         "onhold_jobs_count": onhold_jobs_count,
         "total_hours": total_hours,
@@ -87,7 +91,12 @@ def get_enactment_assignments(request):
 
 def jobs_overview_data(request):
     filter_by = request.GET.get('filter', 'daily')
-    jobs = ProvisionJob.objects.filter(status='completed')
+    batch_id = request.GET.get("batch_id")
+
+    batch = Batch.objects.filter(id=batch_id).first() if batch_id else Batch.objects.order_by("-created_at").first()
+
+
+    jobs = ProvisionJob.objects.filter(status='completed', provision__batch = batch )
 
     if filter_by == 'hourly':
         # Only last 24 hours
@@ -109,5 +118,6 @@ def jobs_overview_data(request):
         'labels': [d['period'].strftime('%b %d, %Y %I:%M %p') for d in data],
         'counts': [d['count'] for d in data]
     }
+  
 
     return JsonResponse(response)
