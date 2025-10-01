@@ -4,6 +4,7 @@ from django.db import models
 class Batch(models.Model):
     name = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
+    start_date = models.DateTimeField(null=True, blank=True)
 
     @property
     def all_jobs_completed(self):

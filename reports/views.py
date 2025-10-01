@@ -244,7 +244,13 @@ def generate_excel_response(batch, report_batch, jobs, defects, request=None):
     
     # Load template (preserve formulas)
     wb = load_workbook(template_path, data_only=False)
-    template_ws = wb["Summary"]
+    summary_worksheet = wb["Summary"]
+    error_type_worksheet = wb["Error Type Highlights"]
+
+    #DELETE SUMMARY SHEET (REMOVE THIS WHEN NEEDED)
+    
+    wb.remove(summary_worksheet)
+    wb.remove(error_type_worksheet)
 
     # Access or create Defect Log sheet
     if "Defect Log" in wb.sheetnames:
@@ -300,15 +306,17 @@ def generate_excel_response(batch, report_batch, jobs, defects, request=None):
                 defect.error_count
             ])
 
-        if table1_data:
-            ws4.insert_rows(6, len(table1_data))
+        ## Uncomment this is enabling summary
 
-            for i, row_data in enumerate(table1_data):
-                for idx, j in enumerate(row_data):
-                    new_cell = ws4.cell(row=i+table1_start_row, column=idx+2, value=j)
-                    new_cell.border = Border(top=thin_border, left=thin_border, right=thin_border, bottom=thin_border)
+        # if table1_data:
+        #     ws4.insert_rows(6, len(table1_data))
 
-            ws4.row_dimensions[table1_start_row + len(table1_data) + 4].height = ws4.row_dimensions[5].height
+        #     for i, row_data in enumerate(table1_data):
+        #         for idx, j in enumerate(row_data):
+        #             new_cell = ws4.cell(row=i+table1_start_row, column=idx+2, value=j)
+        #             new_cell.border = Border(top=thin_border, left=thin_border, right=thin_border, bottom=thin_border)
+
+        #     ws4.row_dimensions[table1_start_row + len(table1_data) + 4].height = ws4.row_dimensions[5].height
 
     table2_data = []
     if greater_ten_severity4_defects.exists():  # Check if the queryset has any data
@@ -329,15 +337,15 @@ def generate_excel_response(batch, report_batch, jobs, defects, request=None):
                 defect.error_count
             ])
 
-        # Insert rows only if there are data to insert
-        if table2_data:
-            table2_data_start = len(table1_data) + 11
+        # #Uncomment if enabled
+        # if table2_data:
+        #     table2_data_start = len(table1_data) + 11
 
 
-            for i, row_data in enumerate(table2_data):
-                for idx, j in enumerate(row_data):
-                    new_cell = ws4.cell(row=i + table2_data_start, column=idx + 2, value=j)
-                    new_cell.border = Border(top=thin_border, left=thin_border, right=thin_border, bottom=thin_border)
+        #     for i, row_data in enumerate(table2_data):
+        #         for idx, j in enumerate(row_data):
+        #             new_cell = ws4.cell(row=i + table2_data_start, column=idx + 2, value=j)
+        #             new_cell.border = Border(top=thin_border, left=thin_border, right=thin_border, bottom=thin_border)
 
     # Populate Defect Log sheet
     for defect in defects:

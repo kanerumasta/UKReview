@@ -56,17 +56,19 @@ def get_user_productivity():
                 output_field=FloatField(),
             ),
             # 👇 pick quota based on is_part_time
-            effective_quota=Case(
-                When(is_part_time=True, then=Value(settings.parttime_quota)),
-                default=Value(settings.quota),
-                output_field=FloatField(),
-            ),
+            # effective_quota=Case(
+            #     When(is_part_time=True, then=Value(settings.parttime_quota)),
+            #     default=Value(settings.quota),
+            #     output_field=FloatField(),
+            # ),
+            
             productivity_ratio=ExpressionWrapper(
-                F("average_jobs_per_hour") / F("effective_quota") * 100,
+                # F("average_jobs_per_hour") / F("effective_quota") * 100,
+                F("average_jobs_per_hour") / settings.quota * 100,
                 output_field=FloatField(),
             ),
         )
-    )
+    ).order_by('productivity_ratio')
     return users
 
 # @cache_page(60 * 5) # Cache the response for 5 minutes

@@ -81,7 +81,7 @@
   </div>
 
     <!-- Part-time Quota -->
-  <div class="mb-6 flex items-center gap-4">
+  <!-- <div class="mb-6 flex items-center gap-4">
     <span class="font-semibold text-gray-700">Part-time Quota:</span>
     <form method="POST" action="{% url 'edit_parttime_quota' %}" class="flex items-center gap-2">
       {% csrf_token %}
@@ -92,18 +92,18 @@
         type="number"
         value="{{ settings.parttime_quota }}"
         class="w-24 text-center text-gray-700 text-lg p-2 rounded border border-gray-300 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 disabled:bg-gray-100 disabled:text-gray-500"
-      >
+      > -->
 
       <!-- Edit Button -->
-      <button type="button" x-show="!parttimeQuotaEditMode" @click="parttimeQuotaEditMode = true; $nextTick(() => $refs.parttimeQuotaInput.focus())" class="text-gray-500 hover:text-blue-600 transition">
+      <!-- <button type="button" x-show="!parttimeQuotaEditMode" @click="parttimeQuotaEditMode = true; $nextTick(() => $refs.parttimeQuotaInput.focus())" class="text-gray-500 hover:text-blue-600 transition">
         <i class="bi bi-pencil-square text-xl"></i>
-      </button>
+      </button> -->
 
       <!-- Save / Cancel Buttons -->
       <button x-show="parttimeQuotaEditMode" type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">Save</button>
-      <button x-show="parttimeQuotaEditMode" @click="parttimeQuotaEditMode=false" type="button" class="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400 transition">Cancel</button>
+      <!-- <button x-show="parttimeQuotaEditMode" @click="parttimeQuotaEditMode=false" type="button" class="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400 transition">Cancel</button>
     </form>
-  </div>
+  </div> -->
 
 
 

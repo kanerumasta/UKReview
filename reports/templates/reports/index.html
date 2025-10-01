@@ -25,7 +25,7 @@
     }, 3000);
 </script>
 {% endif %}
-<div class="p-6" x-data="{ tab: 'summary',editMode: false,
+<div class="p-6" x-data="{ tab: 'defects',editMode: false,
     openForm: false,
     
     checkTypes: [],
@@ -98,8 +98,8 @@
   <div class="w-full bg-white">
     <div class="flex border-b border-gray-200 bg-gray-50 rounded-t-lg sticky top-[80px]">
      
-      <button @click="tab = 'summary'"
-        :class="tab === 'summary' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
+      <button disabled @click="tab = 'summary'"
+        :class="tab === 'summary' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-300'"
         class="px-6 py-3 text-md focus:outline-none transition">
         Summary
       </button>
@@ -113,8 +113,8 @@
         class="px-6 py-3 text-md focus:outline-none transition">
         Enactments
       </button>
-      <button @click="tab = 'error_type_highlights'"
-        :class="tab === 'error_type_highlights' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-600'"
+      <button disabled @click="tab = 'error_type_highlights'"
+        :class="tab === 'error_type_highlights' ? 'border-b-2 border-blue-500 text-blue-500 font-semibold' : 'text-gray-300'"
         class="px-6 py-3 text-md focus:outline-none transition">
         Error Type Highlights
       </button>
@@ -336,7 +336,7 @@
                 <td class="px-3 py-3 whitespace-nowrap">{{ defect.id }}</td>
                 <td class="px-3 py-2">{{ defect.provision_job.enactment_assignment.enactment.title }}</td>
                 <td class="px-3 py-2">{{ defect.provision_job.provision.title }}</td>
-                <td class="px-3 py-2 whitespace-nowrap">{{ defect.provision_job.date }}</td>
+                <td class="px-3 py-2 whitespace-nowrap">{{ defect.provision_job.date|date:"m/d/Y" }}</td>
                 <td class="px-3 py-2">{{ defect.category }}</td>
                 <td class="px-3 py-2">{{ defect.check_type }}</td>
                 <td class="px-3 py-2">{{ defect.issue_description }}</td>

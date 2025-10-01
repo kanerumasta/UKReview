@@ -70,7 +70,7 @@
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Filename</th>
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Enactment Citation</th>
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Provision Ref(s)</th>
-                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Version Date</th>
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User</th>
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
                 <th class="px-6 py-3"></th>
@@ -82,7 +82,7 @@
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.filename }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.provision.enactment.title }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.provision.title }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.date }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.date|date:"m/d/Y" }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.user.get_fullname }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {% if job.status == "completed" %}

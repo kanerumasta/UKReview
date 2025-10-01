@@ -15,11 +15,12 @@
                 <tr>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">ID</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Name</th>
+                    <th class="px-4 py-2 text-left text-gray-700 font-semibold">Work Type</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Total Jobs Assigned</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Total Jobs Completed</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Total Hours Spent</th>
                     <th class="px-4 py-2 text-left text-gray-700 font-semibold">Avg Jobs Per Hour</th>
-                    <th class="px-4 py-2 text-left text-gray-700 font-semibold">Efficiency</th>
+                    <th class="px-4 py-2 text-left text-gray-700 font-semibold">Productivity Percentage</th>
              
                 </tr>
             </thead>
@@ -28,7 +29,14 @@
                     {% for user in users %}
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-2 uppercase">{{ user.username}}</td>
-                        <td class="px-4 py-2">{{ user.get_fullname }}</td>
+                        <td class="px-4 py-2">{{ user.last_name }}, {{user.first_name}}</td>
+                        <td class="px-4 py-2">
+                            {% if user.is_part_time %}
+                                Part-time
+                            {%else%}
+                                Full-time
+                            {%endif%}
+                        </td>
                         <td class="px-4 py-2">{{ user.total_jobs_assigned }}</td>
                         <td class="px-4 py-2">{{ user.total_jobs_completed }}</td>
                         <td class="px-4 py-2">{{ user.total_hours|default:""|floatformat:2 }}</td>

@@ -86,7 +86,12 @@
           </td>
           <td class="px-6 py-4 text-gray-700 capitalize">
             {% if job.user %}
-              {{ job.user.get_fullname }}
+                <!-- <span>{{job.user.username}}</span> -->
+              {%if job.user.get_fullname == ' '%}
+                {{job.user.username}}
+              {%else%}
+              {{job.user.get_fullname}}
+              {%endif%}
             {% else %}
               <span class="text-gray-400 italic">Unassigned</span>
             {% endif %}
@@ -155,7 +160,7 @@
         <label class="block mb-2 text-gray-600 font-medium">Select User:</label>
         <select name="reassign_to" class="w-full border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none mb-4">
           {% for u in users %}
-            {% if u.id != request.user.id %}
+            {% if u.id %}
       <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
     {% endif %}
 
