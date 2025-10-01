@@ -264,7 +264,7 @@ def generate_excel_response(batch, report_batch, jobs, defects, request=None):
         headers = [
             "Defect ID", "Enactment Citation", "Provision Ref(s)", "Version Date",
             "Category", "Check Type", "Issue Description", "Expected Outcome(BES)",
-            "Actual Outcome(L+CP)", "Screenshot/Link", "Count per document",
+            "Actual Outcome(L+CP)", "Screenshot/Link","Severity", "Count per document",
             "Logged By", "Date Logged", "Comments",
         ]
         ws1.append(headers)
@@ -350,6 +350,14 @@ def generate_excel_response(batch, report_batch, jobs, defects, request=None):
         #             new_cell.border = Border(top=thin_border, left=thin_border, right=thin_border, bottom=thin_border)
 
     # Populate Defect Log sheet
+
+
+    #    headers = [
+    #         "Defect ID", "Enactment Citation", "Provision Ref(s)", "Version Date",
+    #         "Category", "Check Type", "Issue Description", "Expected Outcome(BES)",
+    #         "Actual Outcome(L+CP)", "Screenshot/Link", "Count per document",
+    #         "Logged By", "Date Logged", "Comments",
+    #     ]
     for defect in defects:
         url = defect.get_absolute_url(request) if defect.screenshot and request else ''
         ws1.append([
@@ -365,7 +373,7 @@ def generate_excel_response(batch, report_batch, jobs, defects, request=None):
             "View Screenshot" if url else "",
             defect.severity_level,
             defect.error_count,
-            defect.provision_job.user.email,
+            defect.provision_job.user.logged_by,
             defect.created_at.strftime("%d/%m/%Y"),
             defect.comments
         ])

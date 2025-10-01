@@ -12,6 +12,7 @@ class User(AbstractUser):
 		],
 		default = "user"
 	)
+	logged_by = models.CharField(max_length=255, null=True, blank=True)
 
 	is_part_time = models.BooleanField(default=False)
 
