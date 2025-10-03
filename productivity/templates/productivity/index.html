@@ -5,7 +5,7 @@
     <!-- Page Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-left mb-6 space-y-2 md:space-y-0">
         <h1 class="text-2xl font-semibold">User Productivity Report</h1>
-        <a href="{% url 'export_to_excel' %}?{{ request.GET.urlencode }}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded shadow">Export To Excel</a>
+        <a href="{% url 'export_to_excel' %}?{{ request.GET.urlencode }}" class="bg-green-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded shadow"><i class="bi bi-box-arrow-up text-xl"></i> Export To Excel</a>
     </div>
 
     <!-- Data Table -->
@@ -27,12 +27,12 @@
                       <div class="flex flex-col text-sm  h-8 ">
                             <span class="h-3"><i class="bi bi-caret-up-fill 
                                 {%if current_sort == field and current_order == 'asc' %}
-                                    text-orange-400
+                                    text-green-500
                                 {%endif%}
                                 "></i></span>
               
                             <span><i class="bi bi-caret-down-fill  {%if current_sort == field and current_order == 'desc' %}
-                                    text-orange-400
+                                    text-green-500
                                 {%endif%}"></i></span>
                 </div>
                  
