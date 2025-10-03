@@ -70,20 +70,62 @@ def get_user_productivity():
         )
     ).order_by('productivity_ratio')
     return users
-
-# @cache_page(60 * 5) # Cache the response for 5 minutes
 def index(request):
     if request.user.role == 'user':
         return redirect("jobs")
 
+    sort = request.GET.get("sort", "productivity_ratio")  # default field
+    order = request.GET.get("order", "asc")
+
     users = get_user_productivity()
+
+    sort_map = {
+        "username": "username",
+        "name": ["last_name", "first_name"],
+        "work_type": "is_part_time",
+        "total_jobs_assigned": "total_jobs_assigned",
+        "total_jobs_completed": "total_jobs_completed",
+        "total_hours": "total_hours",
+        "average_jobs_per_hour": "average_jobs_per_hour",
+        "productivity_ratio": "productivity_ratio",
+    }
+
+    if sort in sort_map:
+        sort_fields = sort_map[sort]
+        if not isinstance(sort_fields, (list, tuple)):
+            sort_fields = [sort_fields]
+        if order == "desc":
+            sort_fields = [f"-{field}" for field in sort_fields]
+        users = users.order_by(*sort_fields)
+
+    # build columns with next_order info for template
+    columns = []
+    for field, label in [
+        ("username", "ID"),
+        ("name", "Name"),
+        ("work_type", "Work Type"),
+        ("total_jobs_assigned", "Total Jobs Assigned"),
+        ("total_jobs_completed", "Total Jobs Completed"),
+        ("total_hours", "Total Hours Spent"),
+        ("average_jobs_per_hour", "Avg Jobs Per Hour"),
+        ("productivity_ratio", "Productivity Percentage"),
+    ]:
+        if field == sort:
+            next_order = "desc" if order == "asc" else "asc"
+        else:
+            next_order = "asc"
+        columns.append((field, label, next_order))
 
     context = {
         "active_page": "productivity",
         "users": users,
+        "columns": columns,
+        "current_sort": sort,
+        "current_order": order,
     }
-
     return render(request, "productivity/index.html", context)
+
+
 
 def export_to_excel(request):
     # Get user productivity data
@@ -102,7 +144,7 @@ def export_to_excel(request):
         "Total Enactments Allocated",
         "Total Time Spent (hours)",
         "Average Jobs per Hour",
-        "Effective Quota",
+
         "Productivity Ratio (%)",
     ]
 
@@ -123,10 +165,6 @@ def export_to_excel(request):
 
         avg_jobs_cell = ws.cell(row=row_num, column=6, value=user.average_jobs_per_hour)
         avg_jobs_cell.number_format = "0.00"
-
-        quota_cell = ws.cell(row=row_num, column=7, value=user.effective_quota)
-        quota_cell.number_format = "0.00"
-
         productivity_cell = ws.cell(row=row_num, column=8, value=user.productivity_ratio)
         productivity_cell.number_format = "0.00"
     # Adjust column width to fit data

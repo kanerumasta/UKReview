@@ -17,7 +17,15 @@ from django.shortcuts import redirect
 
 USER = get_user_model()
 
-def home(request):
+
+def matrix(request):
+
+    pass
+
+
+
+# UK REVIEW
+def ukreview_home(request):
     if request.user.role == 'user':
         return redirect("jobs")
     batch_id = request.GET.get("batch_id")
@@ -81,17 +89,12 @@ def home(request):
     
     return render(request, "home/index.html", context)
 
-
-
 def get_enactment_assignments(request):
     assignments = EnactmentAssignment.objects.all()
     context = {
         "assignments": assignments
     }
     return render(request,'home/index.html', context=context)
-
-
-
 
 def jobs_overview_data(request):
     filter_by = request.GET.get('filter', 'daily')
@@ -125,3 +128,6 @@ def jobs_overview_data(request):
   
 
     return JsonResponse(response)
+
+
+####

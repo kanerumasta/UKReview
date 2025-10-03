@@ -14,7 +14,7 @@
 			<form method="post" action="{% url 'logout' %}" class="h-full flex items-center">
 			{% csrf_token %}
 			<button type="submit"
-				class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition">
+				class="px-4 py-2 bg-red-400 cursor-pointer text-white text-sm rounded-lg hover:bg-red-500 transition">
 				Logout
 			</button>
 			</form>

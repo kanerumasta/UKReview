@@ -193,7 +193,7 @@
 
   <!-- Upload Wrapper -->
   <div 
-    class="mt-2 border-2 border-dashed rounded-lg p-4 hover:bg-blue-100 border-blue-400 text-center cursor-pointer transition"
+    class="mt-2 border-2 border-dashed rounded-lg p-4 py-8 hover:bg-blue-100 border-blue-400 text-center cursor-pointer transition"
     :class="isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-300'"
     @click="$refs.screenshotInput.click()"
     @dragover.prevent="isDragging = true"
@@ -222,7 +222,7 @@
            alt="Current Screenshot" 
            class="mx-auto max-h-40 rounded shadow mb-2"/>
     </template>
-    <p x-show="!selectedDefect.preview && !(editMode && selectedDefect.screenshotUrl)" class="text-5xl text-blue-400"><i class="bi bi-cloud-arrow-up-fill text-blue-400"></i></p>
+    <p x-show="!selectedDefect.preview && !(editMode && selectedDefect.screenshotUrl)" class="text-5xl mb-3 text-blue-400"><i class="bi bi-image"></i></p>
     <p class="text-gray-500" x-show="!selectedDefect.preview && !(editMode && selectedDefect.screenshotUrl)">
       Click to upload or drag & drop an image
     </p>
