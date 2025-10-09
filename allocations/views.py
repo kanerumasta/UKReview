@@ -5,10 +5,10 @@ from jobs.models import ProvisionJob
 from django.core.paginator import Paginator
 from accounts.decorators import manager_required
 
-
-
 User = get_user_model()
 
+
+###UK REVIEW
 @manager_required
 def allocations_index(request):
 
@@ -62,3 +62,5 @@ def allocations_index(request):
         "page_obj": page_obj,
         "active_page": "allocations",
     })
+
+###

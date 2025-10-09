@@ -9,6 +9,9 @@ from django.contrib import messages
 from .models import JobSettings
 from accounts.decorators import manager_required
 
+
+###UK REVIEW SETTINGS
+
 @manager_required
 def index(request):
     categories = DefectCategory.objects.all().order_by("name")
@@ -39,8 +42,6 @@ def update_max_job_count(request):
 
     messages.error(request, 'Settings update failed. Please try again later.')
     return redirect("settings_index")
-
-
 
 def defect_category_create(request):
     if request.method == "POST":
@@ -79,7 +80,6 @@ def defect_category_update(request, pk):
         {"form": form, "formset": formset, "category": category}
     )
 
-
 def defect_category_delete(request, pk):
     category = get_object_or_404(DefectCategory, pk=pk)
     if request.method == "POST":
@@ -108,7 +108,6 @@ def update_quota(request):
     messages.error(request, 'Quota update failed. Please try again later.')
     return redirect("settings_index")
 
-
 @csrf_exempt
 def update_parttime_quota(request):
     settings = JobSettings.objects.first()
@@ -128,3 +127,5 @@ def update_parttime_quota(request):
 
     messages.error(request, 'Part-time quota update failed. Please try again later.')
     return redirect("settings_index")
+
+###

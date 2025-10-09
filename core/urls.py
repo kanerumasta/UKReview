@@ -3,29 +3,27 @@ from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from accounts.views import login_view
-from home.views import ukreview_home
-from jobs.views import jobs_index
+from home.views import matrix
+
 
 from django.conf import settings
 from django.conf.urls.static import static
-from home.views import jobs_overview_data
 
 
 urlpatterns = [
-    path('',ukreview_home, name="dashboard"),
+    path('',matrix, name="matrix"),
     # path('uk-review/',ukreview_home, name='dashboard'),
     path('admin/', admin.site.urls),
     path('login/', login_view, name="login"),
     path("logout/", auth_views.LogoutView.as_view(next_page="login"), name="logout"),
-     path('api/jobs-overview/', jobs_overview_data, name='jobs_overview_data'),
-    path('productivity/', include('productivity.urls')),
-    path('dropzone/', include('dropzone.urls')),
-    path('jobs/', include('jobs.urls')),
-    path('settings/', include('settings.urls')),
-    path('reports/', include('reports.urls')),
-    path('allocations/', include('allocations.urls')),
-    
-    
+
+    # path('productivity/', include('productivity.urls')),
+    # path('dropzone/', include('dropzone.urls')),
+    # path('jobs/', include('jobs.urls')),
+    # path('settings/', include('settings.urls')),
+    # path('reports/', include('reports.urls')),
+    # path('allocations/', include('allocations.urls')),
+    path('uk-review/', include('UKReview.urls')),
 ]
 
 

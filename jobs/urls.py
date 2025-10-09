@@ -24,6 +24,4 @@ urlpatterns = [
     path('<int:job_id>/submit_job', submit_job, name='submit_job'),
     path('<str:defect_id>/delete_defect', delete_defect_log, name='delete_defect'),
     path('<int:job_id>/', job_detail, name='job_detail'),
-    
-
     ]

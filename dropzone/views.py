@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from accounts.decorators import manager_required
 
-
+###UK REVIEW
 # Dropzone view
 @manager_required
 def index(request):
@@ -58,12 +58,12 @@ def upload_file(request):
                     request,
                     f"Invalid file format. Missing columns: {', '.join(missing)}. "
                 )
-                return redirect('/dropzone/')
+                return redirect('dropzone_index')
 
             # ✅ Prevent duplicate batch
             if Batch.objects.filter(name=batch_name).exists():
                 messages.error(request, "Batch with this name already exists.")
-                return redirect('/dropzone/')
+                return redirect('dropzone_index')
 
             # ✅ Create batch
             batch = Batch.objects.create(name=batch_name)
@@ -74,8 +74,9 @@ def upload_file(request):
                 try:
                     formatted_date = datetime.strptime(raw_date, "%d/%m/%Y").strftime("%Y-%m-%d")
                 except ValueError:
+                    batch.delete()
                     messages.error(request, f"Invalid date format in row {idx+1}: {raw_date}")
-                    return redirect('/dropzone/')
+                    return redirect('dropzone_index')
 
                 enactment, _ = Enactment.objects.get_or_create(
                     title=row["Enactment citation"],
@@ -97,10 +98,12 @@ def upload_file(request):
                 print(f"Processing row {idx+1}")
 
             messages.success(request, "File uploaded and data saved successfully!")
-            return redirect('/dropzone/')
+            return redirect('dropzone_index')
 
         except Exception as e:
             messages.error(request, f"Error: {str(e)}")
             return render(request, "dropzone/index.html")
 
     return render(request, "dropzone/index.html")
+
+####

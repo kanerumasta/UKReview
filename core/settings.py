@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'settings',
     'reports',
     'allocations',
+    'UKReview',
 
 
 ]
@@ -68,6 +69,7 @@ MIDDLEWARE = [
 ]
 
 LOGIN_URL = "/login"
+
 
 ROOT_URLCONF = 'core.urls'
 

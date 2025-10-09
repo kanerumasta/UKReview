@@ -16,7 +16,7 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect('dashboard')  # Change to your homepage
+            return redirect('matrix')  # Change to your homepage
     else:
         form = AuthenticationForm()
 

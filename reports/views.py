@@ -373,7 +373,7 @@ def generate_excel_response(batch, report_batch, jobs, defects, request=None):
             "View Screenshot" if url else "",
             defect.severity_level,
             defect.error_count,
-            defect.provision_job.user.logged_by,
+            defect.provision_job.user.logged_by if  defect.provision_job.user.logged_by else defect.provision_job.user.email,
             defect.created_at.strftime("%d/%m/%Y"),
             defect.comments
         ])
