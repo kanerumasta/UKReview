@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{%load file_extras%}
 {% block content %}
 
 {% if messages %}
@@ -47,7 +48,7 @@
     <select name="user" class="border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
       <option value="">All Users</option>
       {% for u in users %}
-      <option value="{{ u.id }}" {% if selected_user == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_fullname|default:u.username }}</option>
+      <option value="{{ u.id }}" {% if selected_user == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_fullname|strip|default:u.username }}</option>
       {% endfor %}
     </select>
   <select name="status" class="border border-gray-300 px-3 py-2 rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">

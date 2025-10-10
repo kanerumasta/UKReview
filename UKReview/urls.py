@@ -13,6 +13,7 @@ from jobs import views as jobs_views
 from reports import views as report_views
 from allocations import views as allocations_views
 from productivity import views as productivity_views
+from api import views as api_views
 
 
 urlpatterns = [
@@ -61,6 +62,10 @@ urlpatterns = [
     path("settings/edit-parttime-quota/", settings_views.update_parttime_quota, name="edit_parttime_quota"), 
     path("settings/<int:pk>/edit/", settings_views.defect_category_update, name="defect_category_update"),
     path("settings/<int:pk>/delete/", settings_views.defect_category_delete, name="defect_category_delete"),
+
+
+    # API
+    path('api/jobs-overview/', api_views.jobs_overview_data, name='job_overview_data')
     
 ]
 

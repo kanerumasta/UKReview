@@ -23,32 +23,114 @@
         }
     }, 3000);
 </script>
+<script>
+    const hasSuccess = [...document.querySelectorAll('#message-container div')]
+        .some(div => div.classList.contains('bg-green-300'));
+    if (hasSuccess) {
+        localStorage.removeItem(`selectedDefect_{{job.id}}`);
+    }
+</script>
 {% endif %}
+<div x-data="{
+    loading:false,
+    openForm: true,
+    editMode:false,
+    defectOptions: {{ defect_options|safe }},
+    checkTypes: [],
+    submitAction:'',
+    showSubmitConfirm:false,
+    showDeleteModal: false,
+    defectToDelete: null,
+    isDragging: false,
 
-<div class="" x-data="{ 
-                loading:false,
-                openForm: true,
-                editMode:false,
-                defectOptions: {{ defect_options|safe }},
-                checkTypes: [],
-                submitAction:'',
-                showSubmitConfirm:false,
-                showDeleteModal: false,
-                defectToDelete: null,
-                selectedDefect: {
-                    id: null,
-                    category: '',
-                    check_type: '',
-                    severity_level: '',
-                    issue_description: '',
-                    expected_outcome: '',
-                    actual_outcome: '',
-                    comments: '',
-                    error_count:'',
-                     preview: null,
-                    screenshotUrl: null
-                }
+    // default shape (empty) — we will restore from localStorage in init()
+    selectedDefect: {
+        id: null,
+        category: '',
+        check_type: '',
+        severity_level: '',
+        issue_description: '',
+        expected_outcome: '',
+        actual_outcome: '',
+        comments: '',
+        error_count: '',
+        preview: null,
+        screenshotUrl: null
+    },
+
+    init() {
+        const key = 'selectedDefect_{{ job.id }}';
+        console.log('[init] defectOptions keys:', Object.keys(this.defectOptions || {}));
+
+        // restore saved object safely
+        try {
+            const saved = localStorage.getItem(key);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // keep only known properties to avoid surprises
+                Object.assign(this.selectedDefect, parsed);
+                console.log('[init] restored selectedDefect:', this.selectedDefect);
+            } else {
+                console.log('[init] no saved selectedDefect in localStorage');
+            }
+        } catch (err) {
+            console.error('[init] failed parsing localStorage selectedDefect:', err);
+        }
+
+        // populate checkTypes based on restored category
+        this.checkTypes = this.defectOptions[this.selectedDefect.category] || [];
+        console.log('[init] initial checkTypes:', this.checkTypes);
+
+        // after DOM renders, force select elements to match the model (helps when options render after model)
+        this.$nextTick(() => {
+            const catEl = document.getElementById('category');
+            if (catEl) catEl.value = this.selectedDefect.category || '';
+            const chkEl = document.getElementById('check_type');
+            if (chkEl) chkEl.value = this.selectedDefect.check_type || '';
+        });
+
+        // watch category changes: only clear check_type if user actually changed category
+        this.$watch('selectedDefect.category', (newCat, oldCat) => {
+            console.log('[watch] category changed from', oldCat, 'to', newCat);
+            this.checkTypes = this.defectOptions[newCat] || [];
+
+            if (oldCat && oldCat !== newCat) {
+                // user changed category -> clear check_type
+                this.selectedDefect.check_type = '';
+            }
+
+            // keep DOM select in sync after checkTypes update
+            this.$nextTick(() => {
+                const chkEl = document.getElementById('check_type');
+                if (chkEl) chkEl.value = this.selectedDefect.check_type || '';
+            });
+        });
+
+        // persist anytime selectedDefect changes (deep)
+        this.$watch('selectedDefect', (value) => {
+            localStorage.setItem(key, JSON.stringify(value));
+        }, { deep: true });
+
+    },
+
+    clearSelectedDefect() {
+        this.selectedDefect = {
+            id: null,
+            category: '',
+            check_type: '',
+            severity_level: '',
+            issue_description: '',
+            expected_outcome: '',
+            actual_outcome: '',
+            comments: '',
+            error_count: '',
+            preview: null,
+            screenshotUrl: null
+        };
+        localStorage.removeItem('selectedDefect_{{ job.id }}');
+    }
 }">
+
 
 
 <div x-show="loading" class="flex items-center justify-center w-full rounded">
@@ -73,7 +155,7 @@
             <form method="POST" action="{% url 'hold' job.id %} " @submit="loading = true">
                 <button type="submit" class="cursor-pointer font-semibold border-2 hover:bg-orange-300 border-orange-300 bg-orange-400 p-3 w-[90px] rounded-md">Pause</button>
             </form>
-           <form x-ref="submitForm" method="POST" action="{% url 'submit_job' job.id %}">
+           <form  x-ref="submitForm" method="POST" action="{% url 'submit_job' job.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="submit_action" x-ref="submitActionInput"  />
                 <button type="button"
@@ -101,7 +183,7 @@
             </div>
 
             <!-- Form (toggle visibility) -->
-            <form @submit="loading = true" method="POST" :action="editMode 
+            <form @submit="loading = true;" method="POST" :action="editMode 
            ? '{% url 'edit_defect_log' job.id %}'
            : '{% url 'add_defect_log' job.id %}'"
                   enctype="multipart/form-data" 
@@ -119,6 +201,7 @@
                             <label class="block text-sm font-medium">Category <span class="text-red-400">*</span></label>
                             <select required id="category" name="category"
                                     x-model="selectedDefect.category"
+                                    x-init="$el.value = selectedDefect.category"
                                     class="mt-1 block w-full border-gray-300 rounded-md border-2 py-2 px-2">
                                 <option value="">Select a category</option>
                                 <template x-for="(options, category) in defectOptions" :key="category">
@@ -252,7 +335,7 @@
 
                 </div>
 
-                <!-- Submit -->
+                <!-- Add Defect Log -->
                 <div class="mt-8">
                     <button type="submit"
                             class=" bg-blue-400 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
@@ -437,7 +520,8 @@
           submitAction = 'start_another';
           $refs.submitActionInput.value = submitAction;
           showSubmitConfirm = false;
-          $refs.submitForm.submit();
+          localStorage.removeItem(`selectedDefect_{{job.id}}`);
+          setTimeout(() => $refs.submitForm.submit(), 100);
         "
         class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
         Submit & Start Another
@@ -445,8 +529,9 @@
       <button @click="
           submitAction = 'go_back';
           showSubmitConfirm = false;
-          $refs.submitActionInput.value = submitAction
-          $refs.submitForm.submit();
+          $refs.submitActionInput.value = submitAction;
+         localStorage.removeItem(`selectedDefect_{{job.id}}`);
+          setTimeout(() => $refs.submitForm.submit(), 100);
         "
         class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
         Submit & Go Back to Jobs

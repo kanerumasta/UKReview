@@ -299,6 +299,7 @@ def add_defect_log(request, job_id):
         )
 
         # Redirect back to the job detail page
+        messages.success(request,"Defect log added.")
         return redirect("job_detail", job_id=job_id)
 
     # If the request is not POST, return a 405 Method Not Allowed response

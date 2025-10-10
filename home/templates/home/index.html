@@ -185,7 +185,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let jobsChart;
 
     async function fetchJobsData(filter) {
-        const response = await fetch(`/api/jobs-overview/?filter=${filter}&batch_id={{selected_batch}}`);
+        const response = await fetch(`/uk-review/api/jobs-overview/?filter=${filter}&batch_id={{selected_batch}}`);
         return await response.json();
     }
 

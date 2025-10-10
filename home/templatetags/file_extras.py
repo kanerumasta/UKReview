@@ -8,3 +8,9 @@ register = template.Library()
 def basename(value):
     return os.path.basename(value)
 
+@register.filter
+def strip(value):
+    """Removes leading and trailing whitespace."""
+    if isinstance(value, str):
+        return value.strip()
+    return value

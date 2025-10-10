@@ -12,17 +12,9 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('',matrix, name="matrix"),
-    # path('uk-review/',ukreview_home, name='dashboard'),
     path('admin/', admin.site.urls),
     path('login/', login_view, name="login"),
     path("logout/", auth_views.LogoutView.as_view(next_page="login"), name="logout"),
-
-    # path('productivity/', include('productivity.urls')),
-    # path('dropzone/', include('dropzone.urls')),
-    # path('jobs/', include('jobs.urls')),
-    # path('settings/', include('settings.urls')),
-    # path('reports/', include('reports.urls')),
-    # path('allocations/', include('allocations.urls')),
     path('uk-review/', include('UKReview.urls')),
 ]
 
