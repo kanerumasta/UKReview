@@ -1,14 +1,14 @@
-<div class="h-screen bg-gray-800 sticky top-0">
-    <div class="h-[60px] flex items-center mb-6 text-blue-400 px-3 font-bold text-xl">
+<div class="h-screen bg-gray-800 sticky top-0 flex flex-col">
+    <div class="h-[60px] flex items-center text-blue-400 px-3 font-bold text-xl">
         UK Review
     </div>
-    <ul class="">
+    <ul class="flex-1 ">
 		
 		<li class="duration-150 cursor-pointer ">
 			<a href="{% url 'dashboard' %}" 
 			   class="flex items-center gap-2 p-3 
 					  {% if active_page == 'dashboard' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-				<i class="bi bi-grid-fill text-gray-500" ></i>Dashboard
+				<i class="bi bi-grid-fill" ></i>Dashboard
 			</a>
 		</li>
        
@@ -17,7 +17,7 @@
             <a href="{% url 'dropzone_index' %}" 
                class="flex items-center gap-2 p-3 
                       {% if active_page == 'dropzone' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-               <i class="bi bi-dropbox text-gray-500" ></i>Dropzone
+               <i class="bi bi-dropbox"></i>Dropzone
             </a>
         </li>
         {% endif %}
@@ -25,7 +25,7 @@
             <a href="{% url 'jobs' %}" 
                class="flex items-center gap-2 p-3 
                       {% if active_page == 'jobs' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-               <i class="bi bi-pin-fill text-gray-500" ></i>Jobs
+               <i class="bi bi-person-lines-fill"></i>Jobs
             </a>
         </li>
         {% if user.role == "manager" %}
@@ -33,7 +33,7 @@
             <a href="{% url 'allocations_index' %}" 
                class="flex items-center gap-2 p-3 
                       {% if active_page == 'allocations' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-               <i class="bi bi-pin-fill text-gray-500" ></i>Allocations
+               <i class="bi bi-card-checklist"></i>Allocations
             </a>
         </li>
        {% endif %}
@@ -42,7 +42,7 @@
             <a href="{% url 'productivity_index' %}" 
                class="flex items-center gap-2 p-3 
                       {% if active_page == 'productivity' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-                <i class="bi bi-bar-chart-fill text-gray-500" ></i> Productivity
+                <i class="bi bi-bar-chart-fill" ></i> Productivity
             </a>
         </li>
                {% endif %}
@@ -60,11 +60,17 @@
                 <a href="{% url 'settings_index' %}" 
                 class="flex items-center gap-2 p-3 
                         {% if active_page == 'settings' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-                    <i class="bi bi-gear-fill text-gray-500" ></i> Settings
+                    <i class="bi bi-gear-fill" ></i> Settings
                 </a>
             </li>
 
                {% endif %}
 
     </ul>
+    <div class="h-[100px] border-t border-gray-700 flex items-center mx-2">
+        <a href="/" class="flex w-full items-center text-center hover:-translate-y-1 justify-center hover:bg-gray-700 transition-all duration-150 p-3 rounded-md gap-2 cursor-pointer text-gray-400">
+            <span><i class="bi bi-box-arrow-left text-xl"></i></span>
+            <span class="capitalize">back to matrix</span>
+        </a>
+    </div>
 </div>
