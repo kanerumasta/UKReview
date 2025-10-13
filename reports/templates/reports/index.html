@@ -540,7 +540,7 @@
     
     <h2 class="text-2xl font-bold text-gray-900 mb-6">Edit Defect Log</h2>
     
-    <form method="POST" :action="`/reports/${selectedDefect.id}/edit/`"  @submit.prevent="
+    <form method="POST" :action="`/uk-review/reports/${selectedDefect.id}/edit/`"  @submit.prevent="
           if (!selectedDefect.severity_level) {
               alert('Severity level is required');
               return;

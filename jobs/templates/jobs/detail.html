@@ -494,7 +494,7 @@
             <button @click="showDeleteModal = false" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 transition">
                 Cancel
             </button>
-          <form method="POST" :action="`/jobs/${defectToDelete}/delete_defect`" @submit="loading = true">
+          <form method="POST" :action="`/uk-review/jobs/${defectToDelete}/delete_defect`" @submit="loading = true">
     {% csrf_token %}
     <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
         Delete
