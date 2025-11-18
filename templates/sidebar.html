@@ -46,7 +46,7 @@
             </a>
         </li>
                {% endif %}
-                    {% if user.role == "manager" %}
+                   
         <li class="duration-150 cursor-pointer ">
                 <a href="{% url 'reports_index' %}" 
                 class="flex items-center gap-2 p-3 
@@ -54,7 +54,7 @@
                     <i class="bi bi-clipboard-data-fill"></i> Reports
                 </a>
             </li>
-                   {% endif %}
+                  
              {% if user.role == "manager" %}
         <li class="duration-150 cursor-pointer ">
                 <a href="{% url 'settings_index' %}" 

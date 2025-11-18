@@ -52,7 +52,10 @@
   <!-- Export Buttons -->
   <div class="flex gap-3">
     <a href="{% url 'partial_excel_report' %}?batch={{ selected_batch.id }}"
-      class="px-4  shadow-md py-2 bg-blue-400 hover:bg-blue-500 text-black  text-lg rounded-md shadow">
+      class="px-4  shadow-md py-2 bg-blue-400 hover:bg-blue-500 text-black  text-lg rounded-md shadow 
+       {% if not request.user.role == 'manager' %} 
+         bg-gray-400 cursor-not-allowed pointer-events-none hover:bg-gray-400 
+     {% endif %}">
       <i class="bi bi-file-earmark-spreadsheet mr-1"></i>
       Generate Partial
     </a>
@@ -64,6 +67,10 @@
           {% else %}
                bg-gray-400 cursor-not-allowed pointer-events-none
           {% endif %}
+
+         {% if not request.user.role == 'manager' %} 
+         bg-gray-400 cursor-not-allowed pointer-events-none hover:bg-gray-400 
+     {% endif %}
           ">
    <i class="bi bi-file-earmark-excel mr-1"></i>
    Generate Full
