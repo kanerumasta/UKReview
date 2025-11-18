@@ -241,6 +241,22 @@ def full_excel_report(request):
 def generate_excel_response(batch, report_batch, jobs, defects, request=None):
     template_path = os.path.join(settings.BASE_DIR, "reports", "templates_excel", "output_template.xlsx")
     
+    has_enactment_type = any(
+            job.enactment_type not in [None, "", " ", "  "] 
+            for job in jobs
+        )
+    has_enactment_id = any(
+            job.enactment_identification not in [None, "", " ", "  "] 
+            for job in jobs
+        )
+    has_provision_id = any(
+            job.provision_identification not in [None, "", " ", "  "] 
+            for job in jobs
+        )
+    has_have_am_or_not = any(
+            job.have_am_or_not not in [None, "", " ", "  "] 
+            for job in jobs
+        )
     greater_five_severity3_defects = defects.filter(severity_level=3, error_count__gt=5)
     greater_ten_severity4_defects = defects.filter(severity_level=4, error_count__gt=10)
     
@@ -273,14 +289,28 @@ def generate_excel_response(batch, report_batch, jobs, defects, request=None):
     if "Enactments" in wb.sheetnames:
         ws2 = wb["Enactments"]
         # Clear existing data but keep header (assume header is in row 1)
-        ws2.delete_rows(2, ws2.max_row)
+        ws2.delete_rows(1, ws2.max_row)
     else:
         ws2 = wb.create_sheet("Enactments")
-        headers = [
-            "Filename", "Enactment citation", "Provision", "Date \n (dd/mm/yyyy)",
-            "Document Rating", "Review Outcome", "Remarks"
-        ]
-        ws2.append(headers)
+    headers = [
+        "Filename", "Enactment citation", "Provision", "Date \n (dd/mm/yyyy)",
+        "Document Rating", "Review Outcome", "Remarks"
+    ]
+    # Add conditional column
+
+    if has_enactment_type:
+        headers.append("Enactment Type")
+    if has_provision_id:
+        headers.append("Provision ID")
+    if has_enactment_id:
+        headers.append("Enactment ID")
+    if has_have_am_or_not:
+        headers.append("Have am or not")
+
+    ws2.append(headers)
+    # Make headers bold
+    for cell in ws2[1]:
+        cell.font = Font(bold=True)
 
     if "Error Type Highlights" in wb.sheetnames:
         ws4 = wb["Error Type Highlights"]
@@ -392,16 +422,31 @@ def generate_excel_response(batch, report_batch, jobs, defects, request=None):
             review_outcome = "Defect Found"
         elif hasattr(job, "review_outcome_text") and job.review_outcome_text:
             review_outcome = str(job.review_outcome_text)
+        
+        row_data = [
+        job.filename or "",
+        job.provision.enactment.title if job.provision and job.provision.enactment else "",
+        job.provision.title if job.provision else "",
+        job.date.strftime("%d/%m/%Y") if job.date else "",
+        job.document_rating,
+        review_outcome,
+        job.remarks
+    ]
+        
+        # add column only if enabled
+        if has_enactment_type:
+            row_data.append(job.enactment_type or "")
+        
+        if has_provision_id:
+            row_data.append(str(job.provision_identification or ""))   # force text
 
-        ws2.append([
-            job.filename or "",
-            job.provision.enactment.title if job.provision.enactment else "",
-            job.provision.title if job.provision else "",
-            job.date.strftime("%d/%m/%Y") if job.date else "",
-            job.document_rating,
-            review_outcome,
-            job.remarks
-        ])
+        if has_enactment_id:
+            row_data.append(str(job.enactment_identification or ""))  # force text
+
+        if has_have_am_or_not:
+            row_data.append(job.have_am_or_not or "")
+
+        ws2.append(row_data)
 
     # Mark jobs as generated
     for job in jobs:

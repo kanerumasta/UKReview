@@ -64,6 +64,14 @@ class ProvisionJob(models.Model):
 
     last_edited = models.DateTimeField(auto_now=True)
 
+
+    #Added for new type of input 11/18/2025
+    enactment_identification = models.CharField(max_length=255, null=True, blank=True)
+    provision_identification = models.CharField(max_length=255, null=True, blank=True)
+    have_am_or_not = models.CharField(max_length=255, null=True, blank=True)
+    enactment_type = models.CharField(max_length=255, null=True, blank=True)
+
+
     @property
     def total_time(self):
         from datetime import timedelta

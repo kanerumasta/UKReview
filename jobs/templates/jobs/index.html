@@ -103,7 +103,11 @@
                 <td class="px-6 py-4 whitespace-nowrap">JOB-{{ job.id }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.provision.title }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.enactment_assignment.enactment.title }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{{ job.filename }}</td>
+                <td class="px-6 py-4 whitespace-nowrap"> {% if job.filename.trim %}
+              {{job.filename}}
+{%else%}
+              N/A
+  {% endif %}</td>
                 <td class="px-6 py-4 whitespace-nowrap">{{ job.date|date:"m/d/Y" }}</td>
 
                 <td class="px-6 py-4 whitespace-nowrap  capitalize

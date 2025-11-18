@@ -79,7 +79,14 @@
        <tbody class="bg-white divide-y divide-gray-300">
         {% for job in jobs %}
         <tr class="odd:bg-white even:bg-gray-50 hover:bg-green-50">
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.filename }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+  {% if job.filename.trim %}
+              {{job.filename}}
+{%else%}
+              N/A
+  {% endif %}
+</td> 
+
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.provision.enactment.title }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.provision.title }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.date|date:"m/d/Y" }}</td>
@@ -215,37 +222,57 @@ function handleFile() {
     reader.onload = function(e) {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      let allRows = [];
+      let masterHeader = null;
 
-      if (rows.length > 0) {
-        // Show row count
-        rowCountEl.textContent = rows.length - 1; // exclude header
+      workbook.SheetNames.forEach(sheetName => {
+          const sheet = workbook.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        // Build table header
-        previewTableHead.innerHTML = "";
-        const headerRow = document.createElement("tr");
-        rows[0].forEach(col => {
+          if (rows.length < 2) return; // skip empty sheet
+
+          const header = rows[0];
+
+          // First sheet — define main header
+          if (!masterHeader) {
+              masterHeader = header;
+              allRows.push(header);
+          }
+
+          // Only merge sheets with identical header
+          if (JSON.stringify(header) === JSON.stringify(masterHeader)) {
+              allRows.push(...rows.slice(1)); // except header
+          } else {
+              console.log(`Skipping sheet ${sheetName}: header mismatch`);
+          }
+      });
+
+      // Update row count
+      rowCountEl.textContent = allRows.length - 1;
+
+      // Build header preview
+      previewTableHead.innerHTML = "";
+      const headerRow = document.createElement("tr");
+      masterHeader.forEach(col => {
           const th = document.createElement("th");
           th.textContent = col;
           th.className = "px-3 py-2 border border-gray-300";
           headerRow.appendChild(th);
-        });
-        previewTableHead.appendChild(headerRow);
+      });
+      previewTableHead.appendChild(headerRow);
 
-        // Build table body (limit rows preview)
-        previewTableBody.innerHTML = "";
-        rows.slice(1, 21).forEach(row => {  // show first 20 rows
+      // Build body preview (first 20 rows)
+      previewTableBody.innerHTML = "";
+      allRows.slice(1, 21).forEach(row => {
           const tr = document.createElement("tr");
-          row.forEach(cell => {
-            const td = document.createElement("td");
-            td.textContent = cell ?? "";
-            td.className = "px-3 py-2 border border-gray-300";
-            tr.appendChild(td);
+          masterHeader.forEach((_, idx) => {
+              const td = document.createElement("td");
+              td.textContent = row[idx] ?? "";
+              td.className = "px-3 py-2 border border-gray-300";
+              tr.appendChild(td);
           });
           previewTableBody.appendChild(tr);
-        });
-      }
+      });
 
       // Show modal
       previewModal.classList.remove("hidden");

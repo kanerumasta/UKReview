@@ -70,7 +70,7 @@ MIDDLEWARE = [
 
 LOGIN_URL = "/login"
 
-FORCE_SCRIPT_NAME = "/ldu-jobmatrix/"
+# FORCE_SCRIPT_NAME = "/ldu-jobmatrix/"
 
 ROOT_URLCONF = 'core.urls'
 
