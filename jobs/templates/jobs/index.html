@@ -39,11 +39,13 @@
     <div class="p-6">
     
     <h1 class="mt-4 font-bold text-gray-700 text-xl mb-6">Jobs</h1>
-    {% if jobs.exists %}
+  
     <div class="mb-4 flex justify-between">
         <div class="space-x-2">
             <strong class="font-semibold text-gray-500">Enactment:</strong><span class="font-semibold">{{ jobs.0.provision.enactment.title }}</span>
         </div>
+          {% if jobs.exists %}
+          <div class="flex gap-2">
         <div class="flex items-center space-x-4">
             <div class="relative" x-data="{ search: '' }">
                 <input
@@ -68,18 +70,20 @@
         <div class="space-x-2">
             <strong class="font-normal text-sm text-gray-500">Remaining:</strong><span class="font-semibold">{{ jobs.count }}</span>
         </div>
-         <div class="flex justify-end">
-        <form method="POST" action="{% url 'allocate_enactment' %}" @submit="loading = true">
-            {% csrf_token %}
-            <button type="submit" class="bg-blue-500 my-4 cursor-pointer text-white px-4 py-2 rounded hover:bg-blue-600 transition">
-                Allocate Enactment
-            </button>
-        </form>
+        
     </div>
-
-        </div>
+     {% endif %}
+    <div class="flex justify-end">
+   <form method="POST" action="{% url 'allocate_enactment' %}" @submit="loading = true">
+       {% csrf_token %}
+       <button type="submit" class="bg-blue-500 my-4 cursor-pointer text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+           Allocate Enactment
+       </button>
+   </form>
+</div>
+</div>
     </div>
-    {% endif %}
+   
     
     <!-- Allocate Enactment Button -->
    
