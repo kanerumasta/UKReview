@@ -68,13 +68,7 @@
         <div class="space-x-2">
             <strong class="font-normal text-sm text-gray-500">Remaining:</strong><span class="font-semibold">{{ jobs.count }}</span>
         </div>
-        </div>
-    </div>
-    {% endif %}
-    
-    <!-- Allocate Enactment Button -->
-    {% if not jobs.exists %}
-    <div class="flex justify-end">
+         <div class="flex justify-end">
         <form method="POST" action="{% url 'allocate_enactment' %}" @submit="loading = true">
             {% csrf_token %}
             <button type="submit" class="bg-blue-500 my-4 cursor-pointer text-white px-4 py-2 rounded hover:bg-blue-600 transition">
@@ -82,7 +76,14 @@
             </button>
         </form>
     </div>
+
+        </div>
+    </div>
     {% endif %}
+    
+    <!-- Allocate Enactment Button -->
+   
+   
 
     <!-- Jobs Table -->
     <table class="min-w-full divide-y divide-gray-200">
