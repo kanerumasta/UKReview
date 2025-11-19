@@ -77,13 +77,17 @@
       <tbody class="bg-white divide-y divide-gray-200">
         {% for job in page_obj %}
         <tr class="hover:bg-gray-50 transition cursor-pointer"
-            @click="toggleJob({{ job.id }})">
+            {% if job.status != "completed" %}
+        @click="toggleJob({{ job.id }})"
+    {% endif %}>
           <td class="px-6 py-4">
             <input type="checkbox" name="jobs" value="{{ job.id }}" 
                    x-show="reassignMode"
                    x-model="selectedJobs"
                    @click.stop
-                   class="form-checkbox h-5 w-5 text-blue-600 rounded">
+                   class="form-checkbox h-5 w-5 text-blue-600 rounded" 
+                   {% if job.status == "completed" %}disabled class="opacity-40 cursor-not-allowed"
+                   {% endif %}>
           </td>
           <td class="px-6 py-4 text-gray-700 capitalize">
             {% if job.user %}

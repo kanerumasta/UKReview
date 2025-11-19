@@ -67,7 +67,7 @@ def ukreview_home(request):
        
 
         productivity_data.append({
-            "username": user.username,
+            "username": user.first_name or user.username,
             "completed_jobs": completed_jobs_for_user,
         })
     context = {
