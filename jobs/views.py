@@ -21,8 +21,8 @@ def jobs_index(request):
     # assignment = EnactmentAssignment.objects.filter(user=request.user, status = 'active').first()
     jobs = []
     # if assignment:
-    # jobs = ProvisionJob.objects.filter( status__in=['pending', 'active','onhold'], user=request.user).order_by('-last_edited')
-    jobs = ProvisionJob.objects.filter( status__in=['pending', 'active','onhold'], user=request.user).exclude(provision__batch__name="UK 4th random samples 251118").order_by('-last_edited')
+    jobs = ProvisionJob.objects.filter( status__in=['pending', 'active','onhold'], user=request.user).order_by('-last_edited')
+    # jobs = ProvisionJob.objects.filter( status__in=['pending', 'active','onhold'], user=request.user).exclude(provision__batch__name="UK 4th random samples 251118").order_by('-last_edited')
     for job in jobs:
         if job.status == 'active':
             job.status = 'onhold'
@@ -46,15 +46,10 @@ def allocate_enactment(request):
         return JsonResponse({"error": "Invalid request method."}, status=400)
 
     # Find the first enactment with unassigned pending jobs
-    # enactment = Enactment.objects.filter(
-    #     provisions__jobs__status='pending',
-    #     provisions__jobs__user__isnull=True
-    # ).distinct().first()
-
     enactment = Enactment.objects.filter(
         provisions__jobs__status='pending',
         provisions__jobs__user__isnull=True
-    ).exclude(batch__name="UK 4th random samples 251118").distinct().first()
+    ).distinct().first()
 
 
     if not enactment:

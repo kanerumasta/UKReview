@@ -82,16 +82,25 @@
         <!-- Jobs Overview Chart Placeholder -->
         <div class="bg-white rounded-2xl shadow p-6">
             <h2 class="text-lg font-semibold text-gray-800 mb-4">Job Trends</h2>
-    
-    <div class="mb-4">
-        <select id="jobs-filter" class="border rounded p-2 border-gray-100 outline-0">
-            <option value="hourly" selected>Hourly</option>
-            <option value="daily" >Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-        </select>
-    </div>
+                <div class="mb-4">
+                    <select id="jobs-filter" class="border rounded p-2 border-gray-100 outline-0">
+                        <option value="hourly" selected>Hourly</option>
+                        <option value="daily" >Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+            <div class="flex gap-2 mb-4">
+                <input type="date" id="start-date" class="border rounded p-2 border-gray-200">
+                <input type="date" id="end-date" class="border rounded p-2 border-gray-200">
 
+            <button id="apply-range"
+                class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Apply
+            </button>
+</div>
+
+    
     <canvas id="jobsOverviewChart" class="h-48 w-full"></canvas>
 </div>
 
@@ -99,7 +108,7 @@
 
         <!-- Productivity Chart Placeholder -->
         <div class="bg-white rounded-2xl shadow p-6">
-    <h2 class="text-lg font-semibold text-gray-800 mb-4">User Productivity</h2>
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Team Productivity</h2>
 	
     <canvas id="productivityChart" class="h-64 w-full"></canvas>
 </div>
@@ -185,24 +194,33 @@ document.addEventListener("DOMContentLoaded", function() {
     let jobsChart;
 
     async function fetchJobsData(filter) {
-        const response = await fetch(`/uk-review/api/jobs-overview/?filter=${filter}&batch_id={{selected_batch}}`);
-        return await response.json();
-    }
+    const start = document.getElementById("start-date").value;
+    const end = document.getElementById("end-date").value;
+
+    let url = `/uk-review/api/jobs-overview/?filter=${filter}&batch_id={{selected_batch}}`;
+
+    if (start) url += `&start=${start}`;
+    if (end) url += `&end=${end}`;
+
+    const response = await fetch(url);
+    return await response.json();
+}
+
 
     async function updateChart(filter) {
         const data = await fetchJobsData(filter);
 
-        if(jobsChart) jobsChart.destroy();  // Destroy previous chart
+        if(jobsChart) jobsChart.destroy();  
 
         jobsChart = new Chart(ctx, {
-            type: 'line',   // ✅ switched from 'bar' to 'line'
+            type: 'line',   
             data: {
                 labels: data.labels,
                 datasets: [{
                     label: 'Completed Jobs',
                     data: data.counts,
-                    backgroundColor: 'rgba(59, 130, 246, 0.2)',  // lighter fill
-                    borderColor: 'rgba(59, 130, 246, 1)',        // line color
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)', 
+                    borderColor: 'rgba(59, 130, 246, 1)',        
                     borderWidth: 2,
                     tension: 0.3,   // ✅ smooth curves
                     fill: true,     // ✅ area under the line shaded
@@ -244,11 +262,18 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById('jobs-filter').addEventListener('change', function() {
         updateChart(this.value);
     });
+    document.getElementById("apply-range").addEventListener("click", function () {
+
+    const filter = document.getElementById("jobs-filter").value;
+    updateChart(filter);
+});
+
 });
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script>
+    
 document.addEventListener("DOMContentLoaded", function() {
     const ctxProd = document.getElementById('productivityChart').getContext('2d');
     const productivityData = JSON.parse('{{ productivity_data|escapejs }}');

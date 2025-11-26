@@ -51,7 +51,7 @@ def ukreview_home(request):
     job_settings = JobSettings.objects.first()
 
 
-    users = USER.objects.all().exclude(is_superuser=True)
+    users = USER.objects.all().exclude(is_superuser=True).exclude(role='manager')
     productivity_data = []
 
     for user in users:
