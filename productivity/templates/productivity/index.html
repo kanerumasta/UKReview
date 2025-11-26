@@ -46,7 +46,7 @@
 
             <tbody class="bg-white divide-y divide-gray-100">
                 {% for user in users %}
-                <tr class=" even:bg-gray-50">
+                <tr onclick="window.location='{% url 'productivity_detail' user.id %}'" class="cursor-pointer even:bg-gray-50">
                     <td class="px-4 py-2 uppercase font-medium">{{ user.username }}</td>
                     <td class="px-4 py-2 capitalize">{{ user.last_name }}, {{ user.first_name }}</td>
                     <td class="px-4 py-2 text-md">

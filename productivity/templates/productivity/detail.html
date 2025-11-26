@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load math_extras %}
+{% block content %}
+<div>
+    <!-- User Details -->
+
+    <div class="bg-white  rounded-xl p-6  flex items-center justify-between">
+        <div>
+            <div class=" space-y-1 text-gray-600">
+                <p><strong>Name:</strong> {{ user.get_fullname }}</p>
+                <p><strong>Total Duration (Hours):</strong>
+                    {{ total_duration|divide:6|floatformat:2 }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+  
+        <!-- FILTER & SORT SECTION -->
+<div class="flex px-6 flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <strong class=" text-gray-600">Filters</strong>
+
+    <div class="flex flex-col md:flex-row gap-4">
+        <!-- Batch Filter -->
+        <select onchange="location='?batch='+this.value+'&sort={{ selected_sort|default:'' }}'"
+                class="w-full md:w-64 px-3 py-2 rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+            <option value="">All Batches</option>
+            {% for batch in batches %}
+            <option value="{{ batch.id }}"
+                {% if batch.id|stringformat:'s' == selected_batch %}selected{% endif %}>
+                {{ batch.name }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <!-- Sort By Filter -->
+        <select onchange="location='?batch={{ selected_batch|default:'' }}&sort='+this.value"
+                class="w-full md:w-64 px-3 py-2 rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+            <option value="">Sort By</option>}
+            <option value="start_date" {% if selected_sort == 'start_date' %}selected{% endif %}>Start Date</option>
+            <option value="end_date" {% if selected_sort == 'end_date' %}selected{% endif %}>End Date</option>
+            <option value="duration" {% if selected_sort == 'duration' %}selected{% endif %}>Duration</option>
+            <option value="status" {% if selected_sort == 'status' %}selected{% endif %}>Status</option>
+        </select>
+    </div>
+</div>
+
+
+     <!-- Jobs Table -->
+      <div class="p-4">
+        <div class="flex justify-end">
+            <strong>Count:</strong>
+            <span>{{jobs.count}}</span>
+        </div>
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50 sticky top-[80px]">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provision Ref(s)</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enactment Citation</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration(Minutes)</th>
+               
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for job in jobs %}
+            <tr >
+                <td class="px-6 py-4 whitespace-nowrap">{{ job.provision.batch.name }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ job.provision.title }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ job.enactment_assignment.enactment.title }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ job.start_date }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ job.end_date }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">{{ job.total_time_minutes|floatformat:2    }}</td>
+
+                <td class="px-6 py-4 whitespace-nowrap  capitalize
+               
+                "><span class="rounded-full py-2 px-4 w-[100px]
+                  {% if job.status == 'onhold' %}
+                    text-orange-400 bg-orange-100
+                {% elif job.status == 'active' %}
+                    text-blue-500 
+                {% elif job.status == 'completed' %}
+                    text-green-500 
+                {% else %}
+                    text-gray-500 bg-gray-200
+                {% endif %}
+                ">{%if job.status == 'pending'%}new{%elif job.status == 'onhold' %}Paused{% else %}{{job.status }}{%endif%}</span></td>
+              
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="px-6 py-4 whitespace-nowrap text-center text-gray-500">No jobs available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</div>
+
+
+
+{%endblock%}

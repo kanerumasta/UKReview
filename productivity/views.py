@@ -19,6 +19,8 @@ from django.contrib.auth import get_user_model
 from datetime import timedelta
 from django.db.models.functions import Cast
 from settings.models import JobSettings
+from django.shortcuts import get_object_or_404
+from enactments.models import Batch
 
 
 
@@ -127,6 +129,29 @@ def index(request):
         "current_order": order,
     }
     return render(request, "productivity/index.html", context)
+
+def detail(request, user_id):
+    user = get_object_or_404(User, id = user_id)
+    sort_by = request.GET.get('sort')
+    selected_batch = request.GET.get('batch')
+    if selected_batch:
+        jobs = user.jobs.filter(provision__batch__id = selected_batch)
+    else:
+        jobs = user.jobs.all()
+
+    if sort_by:
+        jobs = jobs.order_by(sort_by)
+
+    
+    
+
+    batches = Batch.objects.all()
+
+    context = {"user":user,"jobs":jobs, "batches":batches, "selected_batch":selected_batch,"total_duration":sum(job.total_time_minutes for job in jobs)}
+    return render(request,"productivity/detail.html", context=context)
+
+
+
 
 def export_to_excel(request):
     # Get user productivity data

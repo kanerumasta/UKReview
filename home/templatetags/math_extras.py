@@ -11,3 +11,10 @@ def percentage(value, total):
         return (value / total) * 100
     except (ZeroDivisionError, TypeError):
         return 0
+    
+@register.filter
+def divide(value, arg):
+    try:
+        return float(value) / float(arg)
+    except (ValueError, ZeroDivisionError):
+        return None
