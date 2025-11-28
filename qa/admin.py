@@ -1,3 +1,6 @@
 from django.contrib import admin
+from .models import QACluster, QADefectLog, QAJob, QAMissingDefectLog, QASession
 
-# Register your models here.
+@admin.register(QACluster)
+class QAClusterAdmin(admin.ModelAdmin):
+    list_display=('id','name')

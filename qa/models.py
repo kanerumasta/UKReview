@@ -20,7 +20,12 @@ class QACluster(models.Model):
         ('onhold', 'ONHOLD'),
     ])
 
-    
+    manager_status = models.CharField(max_length=50, choices=[
+        ('recompute', 'RECOMPUTE'),
+        ('rework', 'REWORK'),
+        ('complete', 'COMPLETE'),
+    ],null=True, blank=True)
+
     
 
 
@@ -67,8 +72,3 @@ class QAMissingDefectLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-
-class QAClusterDisputes(models.Model):
-    reason = models.TextField()
-    qa_cluster = models.ForeignKey(QACluster, on_delete=models.CASCADE)
-    is_resolved = models.BooleanField(default=False)
