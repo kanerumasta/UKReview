@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'settings',
     'reports',
     'allocations',
+    'qa',
     'UKReview',
 
 
