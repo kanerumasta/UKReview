@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{%load file_extras%}
+{% block content %}
+
+{% if messages %}
+<div id="message-container" class="w-full px-6 mt-6">
+    {% for message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-black
+                {% if message.tags == 'error' %}bg-red-300{% endif %}
+                {% if message.tags == 'success' %}bg-green-300{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    // Auto-hide messages after 3 seconds (3000ms)
+    setTimeout(() => {
+        const container = document.getElementById('message-container');
+        if (container) {
+            container.style.transition = "opacity 0.5s";
+            container.style.opacity = 0;
+            setTimeout(() => container.remove(), 500); // remove after fade out
+        }
+    }, 3000);
+</script>
+{% endif %}
+
+<div class="p-6" 
+     x-data="{ 
+        showModal: false, 
+     }">
+
+  <h1 class="text-2xl font-bold mb-6 text-gray-700">QA Loading</h1>
+  <div>
+    <button type="button" @click="showModal=true">Submit to QA</button>
+  </div>
+
+  <!-- Jobs Table -->
+  <form method="post" class="overflow-x-auto bg-white shadow-lg p-6 rounded-lg">
+    {% csrf_token %}
+    <table class="min-w-full divide-y divide-gray-200 rounded-lg">
+      <thead class="bg-gray-100"> 
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Filename</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Provision Ref</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Enactment citation</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">resource</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">date completed</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {% for job in page_obj %}
+        <tr class="hover:bg-gray-50 transition cursor-pointer">
+         
+          
+          <td class="px-6 py-4 font-medium text-gray-700">{{ job.filename }}</td>
+          <td class="px-6 py-4 font-medium text-gray-700">{{ job.provision.title }}</td>
+          <td class="px-6 py-4 text-gray-600">{{ job.provision.enactment.title }}</td>
+          <td class="px-6 py-4 text-gray-600">{{ job.user.get_fullname }}</td>
+          
+          <td class="px-6 py-4">
+           {{job.end_date}}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-6 py-4 text-center text-gray-400 italic">No jobs found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Pagination (same as before) -->
+    <div class="mt-6 flex justify-center items-center space-x-2">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" 
+           class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition">Previous</a>
+      {% else %}
+        <span class="px-3 py-1 bg-gray-100 rounded text-gray-400 cursor-not-allowed">Previous</span>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+          <span class="px-3 py-1 bg-blue-600 text-white rounded">{{ num }}</span>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+          <a href="?page={{ num }}" 
+             class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" 
+           class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition">Next</a>
+      {% else %}
+        <span class="px-3 py-1 bg-gray-100 rounded text-gray-400 cursor-not-allowed">Next</span>
+      {% endif %}
+    </div>
+
+ 
+
+  </form>
+  
+  
+    <!-- Modal (same as before) -->
+    <div x-show="showModal" x-transition.opacity class="fixed inset-0 flex items-center justify-center shadow-lg bg-black/10 bg-opacity-50 z-100">
+      <div class="bg-white rounded-lg p-6 w-96 shadow-xl border  border-gray-400">
+        <h2 class="text-lg font-bold mb-4 text-gray-700">Submit Jobs to QA</h2>
+        <small>These jobs will be grouped into a new QA cluster. Please review the details below before submitting.</small>
+        <div>
+            <div><strong>Cluster Name:</strong><span>{{cluster_name}}</span></div>
+            <div><strong>Number of Jobs:</strong><span>{{sampling_data.lot_size}}</span></div>
+            <div><strong>Sampling Type:</strong><span>{{sampling_data.type}}</span></div>
+            <div><strong>Sampling Size:</strong><span>{{sampling_data.sample_size}}</span></div>
+        </div>
+        
+        <div class="flex justify-end space-x-2">
+          <button type="button" @click="showModal = false" 
+                  class="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-md transition">Cancel</button>
+          <button type="submit" 
+                  class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md shadow-md transition">Confirm</button>
+        </div>
+      </div>
+    </div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const form = document.getElementById('filters-form');
+    const selects = form.querySelectorAll('select');
+
+    selects.forEach(select => {
+        select.addEventListener('change', () => {
+            form.submit();
+        });
+    });
+});
+</script>
+
+{% endblock %}
