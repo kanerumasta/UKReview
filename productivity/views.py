@@ -22,7 +22,9 @@ from settings.models import JobSettings
 from django.shortcuts import get_object_or_404
 from enactments.models import Batch
 
-
+from django.db.models import Sum
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.http import HttpRequest
 
 # UK REVIEW
 
@@ -131,28 +133,224 @@ def index(request):
     return render(request, "productivity/index.html", context)
 
 def detail(request, user_id):
-    user = get_object_or_404(User, id = user_id)
+    """
+    Detail view with:
+    - filtering by batch
+    - whitelisted sorting via ?sort=...&order=...
+    - server-side pagination
+    - trimmed pagination window for UI
+    - print() for errors (no logging)
+    """
+
+    user = get_object_or_404(User, id=user_id)
+
     sort_by = request.GET.get('sort')
+    sort_order = request.GET.get('order', 'asc')
     selected_batch = request.GET.get('batch')
-    if selected_batch:
-        jobs = user.jobs.filter(provision__batch__id = selected_batch)
-    else:
-        jobs = user.jobs.all()
+    page_number = request.GET.get('page', 1)
+    PER_PAGE = 10
 
-    if sort_by:
-        jobs = jobs.order_by(sort_by)
+    allowed_sort_fields = {
+        "batch": "provision__batch__name",
+        "provision": "provision__title",
+        "citation": "enactment_assignment__enactment__title",
+        "start_date": "start_date",
+        "end_date": "end_date",
+        "duration": "total_time_minutes",
+        "status": "status",
+    }
 
-    
-    
+    # Build base queryset (filtered)
+    try:
+        if selected_batch:
+            jobs_qs = user.jobs.filter(provision__batch__id=selected_batch)
+        else:
+            jobs_qs = user.jobs.all()
+    except Exception as e:
+        print(f"Error fetching jobs for user {user_id} (batch={selected_batch}): {e}")
+        jobs_qs = user.jobs.none()
 
-    batches = Batch.objects.all()
+    # Apply ordering if valid
+    try:
+        if sort_by and sort_by in allowed_sort_fields:
+            orm_field = allowed_sort_fields[sort_by]
+            if sort_order == 'desc':
+                jobs_qs = jobs_qs.order_by(f"-{orm_field}")
+            else:
+                jobs_qs = jobs_qs.order_by(orm_field)
+    except Exception as e:
+        print(f"Error applying ordering ({sort_by}, {sort_order}) for user {user_id}: {e}")
 
-    context = {"user":user,"jobs":jobs, "batches":batches, "selected_batch":selected_batch,"total_duration":sum(job.total_time_minutes for job in jobs)}
-    return render(request,"productivity/detail.html", context=context)
+    # Correct jobs count BEFORE pagination
+    try:
+        total_jobs_count = jobs_qs.count()
+    except Exception as e:
+        print(f"Error getting jobs count for user {user_id}: {e}")
+        total_jobs_count = 0
 
+    # ensure total_duration is numeric (aggregate returns None if no rows)
+    try:
+        agg = jobs_qs.aggregate(total=Sum('total_time_minutes'))
+        total_duration = agg.get('total') or 0          # always numeric
+        # Normalize to int minutes if the field is Decimal/float
+        try:
+            total_duration = int(total_duration)
+        except Exception:
+            # keep it numeric as-is if int conversion fails
+            pass
+    except Exception as e:
+        print(f"Error aggregating total_time_minutes for user {user_id}: {e}")
+        total_duration = 0
 
+    # convenience display string (e.g. "2h 34m")
+    try:
+        mins = int(total_duration)
+        hours = mins // 60
+        rem_mins = mins % 60
+        if hours:
+            total_duration_display = f"{hours}h {rem_mins}m"
+        else:
+            total_duration_display = f"{rem_mins}m"
+    except Exception as e:
+        print(f"Error building total_duration_display: {e}")
+        total_duration_display = f"{total_duration}"
 
+    # robust user display name
+    try:
+        # prefer get_full_name (works for default User), fall back to last/first, then username
+        if hasattr(user, "get_full_name") and user.get_full_name():
+            user_display_name = user.get_full_name()
+        elif getattr(user, "last_name", None) or getattr(user, "first_name", None):
+            user_display_name = f"{getattr(user,'last_name','')}, {getattr(user,'first_name','')}".strip(", ")
+        else:
+            user_display_name = getattr(user, "username", "Unknown user")
+    except Exception as e:
+        print(f"Error building user_display_name: {e}")
+        user_display_name = getattr(user, "username", "Unknown user")
 
+    # Build columns for the template
+    column_definitions = [
+        ("batch", "Batch"),
+        ("provision", "Provision Ref(s)"),
+        ("citation", "Enactment Citation"),
+        ("start_date", "Start Date"),
+        ("end_date", "End Date"),
+        ("duration", "Duration (Minutes)"),
+        ("status", "Status"),
+    ]
+
+    columns = []
+    for key, label in column_definitions:
+        next_order = 'desc' if (key == sort_by and sort_order == 'asc') else 'asc'
+        columns.append((key, label, next_order))
+
+    # Build base_query (preserve GET params except page)
+    base_q = request.GET.copy()
+    if 'page' in base_q:
+        del base_q['page']
+    base_query = base_q.urlencode()
+
+    # Pagination
+    paginator = None
+    page_obj = None
+    try:
+        paginator = Paginator(jobs_qs, PER_PAGE)
+        try:
+            page_obj = paginator.page(page_number)
+        except PageNotAnInteger:
+            page_obj = paginator.page(1)
+        except EmptyPage:
+            page_obj = paginator.page(paginator.num_pages)
+    except Exception as e:
+        print(f"Pagination error for user {user_id}: {e}")
+        page_obj = list(jobs_qs)
+
+    # --- build a trimmed page window for UI ---
+    def build_page_window(current, last, window=2):
+        """
+        Returns a list containing page numbers and '...' where there are gaps.
+        Example: [1, '...', 4, 5, 6, 7, 8, '...', 20]
+        - current: current page number (int)
+        - last: last page number (int)
+        - window: how many pages to show on each side of current
+        """
+        try:
+            current = int(current)
+        except Exception:
+            current = 1
+
+        last = int(last)
+        if last <= 1:
+            return [1] if last == 1 else []
+
+        pages = []
+        left = max(1, current - window)
+        right = min(last, current + window)
+
+        # always include first page
+        if 1 not in pages:
+            pages.append(1)
+
+        # left gap
+        if left > 2:
+            pages.append('...')
+        # left range
+        for p in range(max(2, left), current):
+            if p not in pages:
+                pages.append(p)
+
+        # current page
+        if current not in pages:
+            pages.append(current)
+
+        # right range
+        for p in range(current + 1, min(last, right) + 1):
+            pages.append(p)
+
+        # right gap
+        if right < last - 1:
+            pages.append('...')
+        # always include last page if it's not already present
+        if last not in pages:
+            pages.append(last)
+
+        # Ensure unique, sorted by appearance
+        final = []
+        for item in pages:
+            if item not in final:
+                final.append(item)
+        return final
+
+    page_window = []
+    try:
+        if getattr(page_obj, 'paginator', None):
+            page_window = build_page_window(page_obj.number, paginator.num_pages, window=2)
+        else:
+            # fallback: if page_obj is a simple list or something else
+            page_window = [1]
+    except Exception as e:
+        print(f"Error building page window for user {user_id}: {e}")
+        page_window = [1]
+
+    context = {
+        "user": user,
+        "jobs": page_obj,
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "batches": Batch.objects.all(),
+        "selected_batch": selected_batch,
+        "columns": columns,
+        "current_sort": sort_by,
+        "current_order": sort_order,
+        "total_jobs_count": total_jobs_count,
+        "base_query": base_query,
+        "page_window": page_window,   # <-- the trimmed page list for the template\
+        "total_duration": total_duration,
+        "total_duration_display": total_duration_display,
+        "user_display_name": user_display_name,
+    }
+
+    return render(request, "productivity/detail.html", context=context)
 def export_to_excel(request):
     # Get user productivity data
     users = get_user_productivity()
