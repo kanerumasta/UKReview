@@ -48,7 +48,9 @@ def allocate_enactment(request):
     # Find the first enactment with unassigned pending jobs
     enactment = Enactment.objects.filter(
         provisions__jobs__status='pending',
-        provisions__jobs__user__isnull=True
+        provisions__jobs__user__isnull=True,
+        batch__name="UK_10_Batch4"
+
     ).distinct().first()
 
 
@@ -76,7 +78,8 @@ def allocate_enactment(request):
     ProvisionJob.objects.filter(id__in=job_ids).update(
         user=request.user,
         enactment_assignment=assignment,
-        date_assigned = timezone.now()
+        date_assigned = timezone.now(),
+
     )
 
 

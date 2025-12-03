@@ -8,8 +8,8 @@
         <div>
             <div class=" space-y-1 text-gray-600">
                 <p><strong>Name:</strong> {{ user_display_name  }}</p>
-                <p><strong>Total Duration (Hours):</strong>
-                    {{ total_duration|divide:6|floatformat:2 }}
+                <p><strong>Total Duration:</strong>
+                    {{ total_duration_display}}
                 </p>
             </div>
         </div>
@@ -22,7 +22,7 @@
 
     <div class="flex flex-col md:flex-row gap-4">
         <!-- Batch Filter -->
-        <select onchange="location='?batch='+this.value+'&sort={{ selected_sort|default:'' }}'"
+        <select onchange="location='?batch='+this.value+'&sort={{ selected_sort|default:'last_edited' }}'"
                 class="w-full md:w-64 px-3 py-2 rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
             <option value="">All Batches</option>
             {% for batch in batches %}
@@ -45,19 +45,31 @@
     </div>
 </div>
 
+<!-- Export button: preserves current filters/sort -->
+<div class="px-6 py-2">
+  <a href="?export=excel{% if base_query %}&{{ base_query }}{% endif %}"
+     class="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+    <!-- optional icon -->
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v6a2 2 0 002 2h3m4 0h7a2 2 0 002-2V7M16 3v4M8 3v4m8 10v6m0 0H8m8 0a4 4 0 01-8 0" />
+    </svg>
+    Export Excel
+  </a>
+</div>
+
 
      <!-- Jobs Table -->
       <div class="p-4">
         <div class="flex justify-end">
-            <strong>Count:</strong>
-            <span>{{jobs.count}}</span>
+            <strong>Count: </strong>
+            <span> {{total_jobs_count}}</span>
         </div>
         <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50 sticky top-[80px]">
             <tr>
                 {% for field, label, next_order in columns %}
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <a href="?sort={{ field }}&order={{ next_order }}"
+                        <a href="?sort={{ field }}&order={{ next_order }}&batch={{ selected_batch|default:'' }}"
                         class="flex items-center
                                 {% if field == current_sort %}
                                     text-black
