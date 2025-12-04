@@ -15,8 +15,6 @@ def jobs_overview_data(request):
     # Added a date range filter
 
 
-
-
     filter_by = request.GET.get('filter', 'daily')
     batch_id = request.GET.get("batch_id")
 

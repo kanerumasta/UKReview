@@ -183,23 +183,103 @@ def detail(request, user_id):
         if sort_by and sort_by in allowed_sort_fields:
             orm_field = allowed_sort_fields[sort_by]
             # If the mapped ORM field is the derived property 'total_time_minutes' we skip ORM order_by on it.
+            # For derived 'duration' we'll sort in Python below.
             if orm_field != "total_time_minutes":
                 if sort_order == 'desc':
                     jobs_qs = jobs_qs.order_by(f"-{orm_field}")
                 else:
                     jobs_qs = jobs_qs.order_by(orm_field)
-            # If user requested sorting by 'duration' (derived), you could implement Python-side sorting,
-            # but that will be after fetching results and may complicate pagination. This example skips it.
+            # if orm_field == "total_time_minutes" -> handle below (Python sort)
     except Exception as e:
         print(f"Error applying ordering ({sort_by}, {sort_order}) for user {user_id}: {e}")
 
-
-    # Correct jobs count BEFORE pagination
+    # --- Handle sorting by derived 'duration' in Python (materialize, sort, then paginate) ---
+    jobs_is_list = False
+    jobs_for_pagination = None
     try:
-        total_jobs_count = jobs_qs.count()
+        if sort_by == 'duration':
+            # Materialize the queryset and prefetch sessions to avoid N+1 when accessing the property
+            try:
+                jobs_list = list(jobs_qs.select_related('provision__batch', 'enactment_assignment__enactment').prefetch_related('sessions'))
+            except Exception:
+                jobs_list = list(jobs_qs)
+
+            # Sort by job.total_time_minutes (float minutes), default to 0 if missing
+            try:
+                jobs_list.sort(key=lambda j: float(getattr(j, 'total_time_minutes', 0) or 0), reverse=(sort_order == 'desc'))
+            except Exception as e:
+                print(f"Error sorting jobs by duration in Python for user {user_id}: {e}")
+
+            jobs_is_list = True
+            jobs_for_pagination = jobs_list
+        else:
+            # Keep jobs_qs as the queryset path (not evaluated yet)
+            jobs_for_pagination = jobs_qs
+    except Exception as e:
+        print(f"Error preparing jobs_for_pagination for user {user_id}: {e}")
+        jobs_for_pagination = jobs_qs
+
+    # --- Correct jobs count BEFORE pagination ---
+    try:
+        if jobs_is_list:
+            total_jobs_count = len(jobs_for_pagination)
+        else:
+            total_jobs_count = jobs_for_pagination.count()
     except Exception as e:
         print(f"Error getting jobs count for user {user_id}: {e}")
         total_jobs_count = 0
+
+      # --- total duration: SUM the model property for each job in the UN-PAGINATED set ---
+    try:
+        total_duration = 0.0
+        # If we have a materialized list (e.g. duration-sorted), iterate it; otherwise prefetch sessions and iterate queryset
+        if jobs_is_list:
+            jobs_for_sum = jobs_for_pagination
+        else:
+            try:
+                jobs_for_sum = jobs_for_pagination.select_related('provision__batch', 'enactment_assignment__enactment').prefetch_related('sessions')
+            except Exception:
+                jobs_for_sum = jobs_for_pagination
+
+        for job in jobs_for_sum:
+            try:
+                total_duration += float(getattr(job, 'total_time_minutes', 0) or 0)
+            except Exception as inner_e:
+                print(f"Error reading total_time_minutes for job {getattr(job,'id','?')}: {inner_e}")
+    except Exception as e:
+        print(f"Error summing total_time_minutes: {e}")
+        total_duration = 0.0
+
+    # human-readable total_duration_display (minutes -> hours/mins)
+    try:
+        mins = int(round(total_duration))
+        hours = mins // 60
+        rem = mins % 60
+        total_duration_display = f"{hours}h {rem}m" if hours else f"{rem}m"
+    except Exception as e:
+        print("Error building total_duration_display:", e)
+        total_duration_display = str(total_duration)
+
+    # --- Pagination: paginate either the list or the queryset ---
+    paginator = None
+    page_obj = None
+    try:
+        paginator = Paginator(jobs_for_pagination, PER_PAGE)
+        try:
+            page_obj = paginator.page(page_number)
+        except PageNotAnInteger:
+            page_obj = paginator.page(1)
+        except EmptyPage:
+            page_obj = paginator.page(paginator.num_pages)
+    except Exception as e:
+        print(f"Pagination error for user {user_id}: {e}")
+        # fallback: if jobs_for_pagination is a queryset, materialize to list
+        try:
+            page_obj = list(jobs_for_pagination)
+        except Exception:
+            page_obj = []
+
+    
 
     # --- Export to Excel (if requested) ---
     export_param = request.GET.get('export')

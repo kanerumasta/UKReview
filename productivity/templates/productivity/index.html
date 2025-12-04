@@ -5,14 +5,12 @@
     <!-- Page Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-left mb-6 space-y-2 md:space-y-0">
         <h1 class="text-2xl font-semibold">User Productivity Report</h1>
-        <a href="{% url 'export_to_excel' %}?{{ request.GET.urlencode }}" class="bg-green-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded shadow"><i class="bi bi-box-arrow-up text-xl"></i> Export To Excel</a>
+        <a href="{% url 'export-all-productivity' %}?{{ request.GET.urlencode }}" class="bg-green-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded shadow"><i class="bi bi-box-arrow-up text-xl"></i> Export To Excel</a>
     </div>
 
 
-    <a href="{% url 'export-all-productivity' %}?{{ request.GET.urlencode }}"
-   class="bg-green-500 hover:bg-green-600 text-white font-medium px-4 py-2 rounded shadow">
-   <i class="bi bi-box-arrow-up text-xl"></i> Export All Excel
-</a>
+
+ 
 
     <!-- Data Table -->
     <div class="overflow-x-auto shadow border border-gray-300 rounded-lg">

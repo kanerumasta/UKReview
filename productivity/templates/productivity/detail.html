@@ -43,27 +43,34 @@
             <option value="status" {% if selected_sort == 'status' %}selected{% endif %}>Status</option>
         </select> {% endcomment %}
     </div>
-</div>
 
-<!-- Export button: preserves current filters/sort -->
-<div class="px-6 py-2">
+    <!-- Export button: preserves current filters/sort -->
+<div class="px-6 py-2 md:ml-auto flex md:items-center gap-10">
+
+    <div class="flex justify-end gap-2 mb-2">
+            <strong>Count: </strong>
+            <span> {{total_jobs_count}}</span>
+        </div>
+
+
   <a href="?export=excel{% if base_query %}&{{ base_query }}{% endif %}"
      class="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
     <!-- optional icon -->
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v6a2 2 0 002 2h3m4 0h7a2 2 0 002-2V7M16 3v4M8 3v4m8 10v6m0 0H8m8 0a4 4 0 01-8 0" />
     </svg>
-    Export Excel
+    Export to Excel
   </a>
 </div>
 
 
+
+</div>
+
+
+
      <!-- Jobs Table -->
-      <div class="p-4">
-        <div class="flex justify-end">
-            <strong>Count: </strong>
-            <span> {{total_jobs_count}}</span>
-        </div>
+      <div class="p-4 ">
         <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50 sticky top-[80px]">
             <tr>
