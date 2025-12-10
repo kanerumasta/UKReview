@@ -5,48 +5,55 @@
     <!-- Page Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-left mb-6 space-y-2 md:space-y-0">
         <h1 class="text-2xl font-semibold">User Productivity Report</h1>
-        <a href="{% url 'export-all-productivity' %}?{{ request.GET.urlencode }}" class="bg-green-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded shadow"><i class="bi bi-box-arrow-up text-xl"></i> Export To Excel</a>
+
+        <div class="flex items-center space-x-4">
+            <!-- Batch filter (placed in header) -->
+           {% if batches %}
+            <div>
+                <label for="batchFilterTop" class="text-sm font-normal text-gray-500 mr-2">Batch:</label>
+                <select id="batchFilterTop" name="batch"
+                        class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        aria-label="Filter by batch">
+                    <option value="">All batches</option>
+                    {% for batch in batches %}
+                        <!-- value must be the batch id so the view can parse it -->
+                        <option value="{{ batch.id }}" {% if selected_batch and selected_batch|stringformat:"s" == batch.id|stringformat:"s" %}selected{% endif %}>
+                            {{ batch.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <a href="{% url 'export-all-productivity' %}?{{ request.GET.urlencode }}" class="bg-green-500 hover:bg-green-600 text-white font-medium px-4 py-2 rounded shadow">
+                <i class="bi bi-box-arrow-up text-xl"></i> Export To Excel
+            </a>
+        </div>
     </div>
-
-
-
- 
 
     <!-- Data Table -->
     <div class="overflow-x-auto shadow border border-gray-300 rounded-lg">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-100 sticky top-0">
-    <tr>
-        {% for field, label, next_order in columns %}
-            <th class="px-4 py-4 text-left text-gray-500 font-semibold">
-                <a href="?sort={{ field }}&order={{ next_order }}"
-                   class="flex items-center
-                    {%if field == current_sort%}
-                        text-black
-                    {%endif%}
-                   
-                   ">
-                    <span class="mr-2">{{ label }}</span>
-                   
-                      <div class="flex flex-col text-sm  h-8 ">
-                            <span class="h-3"><i class="bi bi-caret-up-fill 
-                                {%if current_sort == field and current_order == 'asc' %}
-                                    text-green-500
-                                {%endif%}
-                                "></i></span>
-              
-                            <span><i class="bi bi-caret-down-fill  {%if current_sort == field and current_order == 'desc' %}
-                                    text-green-500
-                                {%endif%}"></i></span>
-                </div>
-                 
-                     
-                </a>
-            </th>
-        {% endfor %}
-    </tr>
-</thead>
-
+                <tr>
+                    {% for field, label, next_order in columns %}
+                        <th class="px-4 py-4 text-left text-gray-500 font-semibold">
+                            <a href="?sort={{ field }}&order={{ next_order }}"
+                               class="flex items-center {% if field == current_sort %}text-black{% endif %}">
+                                <span class="mr-2">{{ label }}</span>
+                                <div class="flex flex-col text-sm h-8">
+                                    <span class="h-3">
+                                        <i class="bi bi-caret-up-fill {% if current_sort == field and current_order == 'asc' %}text-green-500{% endif %}"></i>
+                                    </span>
+                                    <span>
+                                        <i class="bi bi-caret-down-fill {% if current_sort == field and current_order == 'desc' %}text-green-500{% endif %}"></i>
+                                    </span>
+                                </div>
+                            </a>
+                        </th>
+                    {% endfor %}
+                </tr>
+            </thead>
 
             <tbody class="bg-white divide-y divide-gray-100">
                 {% for user in users %}
@@ -62,13 +69,51 @@
                     </td>
                     <td class="px-4 py-2">{{ user.total_jobs_assigned }}</td>
                     <td class="px-4 py-2">{{ user.total_jobs_completed }}</td>
-                    <td class="px-4 py-2">{{ user.total_hours|default:""|floatformat:2 }}</td>
-                    <td class="px-4 py-2">{{ user.average_jobs_per_hour|default:""|floatformat:2 }}</td>
-                    <td class="px-4 py-2 font-semibold">{{ user.productivity_ratio|floatformat:2 }}{% if user.productivity_ratio %}%{% endif %}</td>
+
+                    {# Prefer display-ready rounded attributes when present, else fall back to raw values #}
+                    <td class="px-4 py-2">
+                        {{ user.total_hours_display|default:user.total_hours|floatformat:2 }}
+                    </td>
+
+                    <td class="px-4 py-2">
+                        {{ user.average_jobs_per_hour_display|default:user.average_jobs_per_hour|floatformat:2 }}
+                    </td>
+
+                    <td class="px-4 py-2 font-semibold">
+                        {{ user.productivity_ratio_display|default:user.productivity_ratio|floatformat:2 }}{% if user.productivity_ratio %}%{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{{ columns|length }}" class="px-6 py-4 whitespace-nowrap text-center text-gray-500">No users available.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<!-- Batch filter handler (keeps other query params, resets page) -->
+<script>
+  (function () {
+    const el = document.getElementById('batchFilterTop');
+    if (!el) return;
+    el.addEventListener('change', function (e) {
+      const value = e.target.value;
+      const params = new URLSearchParams(window.location.search);
+
+      if (value) {
+        params.set('batch', value);
+      } else {
+        params.delete('batch');
+      }
+      // Reset pagination when switching filters
+      params.delete('page');
+
+      const qs = params.toString();
+      const newUrl = window.location.pathname + (qs ? ('?' + qs) : '');
+      window.location.href = newUrl;
+    });
+  })();
+</script>
 {% endblock %}

@@ -5,11 +5,12 @@
     <!-- User Details -->
 
     <div class="bg-white  rounded-xl p-6  flex items-center justify-between">
+        
         <div>
             <div class=" space-y-1 text-gray-600">
                 <p><strong>Name:</strong> {{ user_display_name  }}</p>
-                <p><strong>Total Duration:</strong>
-                    {{ total_duration_display}}
+                <p><strong>Average Jobs Per Hour:</strong>
+                    {{ total_duration_display | floatformat:2 }}
                 </p>
             </div>
         </div>
@@ -18,6 +19,7 @@
   
         <!-- FILTER & SORT SECTION -->
 <div class="flex px-6 flex-col md:flex-row md:items-center gap-4">
+
     <strong class=" text-gray-600">Filters:</strong>
 
     <div class="flex flex-col md:flex-row gap-4">
@@ -54,7 +56,7 @@
 
 
   <a href="?export=excel{% if base_query %}&{{ base_query }}{% endif %}"
-     class="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+     class="inline-flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-200">
     <!-- optional icon -->
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v6a2 2 0 002 2h3m4 0h7a2 2 0 002-2V7M16 3v4M8 3v4m8 10v6m0 0H8m8 0a4 4 0 01-8 0" />

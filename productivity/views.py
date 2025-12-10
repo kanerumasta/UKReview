@@ -14,7 +14,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from django.db.models import Sum, Count, F, ExpressionWrapper, DurationField, Q, FloatField, Func, Case, When, Value, FloatField
+# from django.db.models import Sum, Count, F, ExpressionWrapper, DurationField, Q, FloatField, Func, Case, When, Value, FloatField
 from django.contrib.auth import get_user_model
 from datetime import timedelta
 from django.db.models.functions import Cast
@@ -29,6 +29,14 @@ from django.utils import timezone as dj_timezone
 
 from django.utils.text import slugify
 from datetime import datetime as _dt
+
+from django.db.models import (
+    Count, Sum as DjangoSum, F, FloatField, ExpressionWrapper,
+    DurationField, Value, Case, When, Func, Q
+)
+from django.db.models.functions import Coalesce
+from django.db.models import OuterRef, Subquery
+from django.core.exceptions import FieldError
 # UK REVIEW
 
 class ExtractEpoch(Func):
@@ -36,62 +44,324 @@ class ExtractEpoch(Func):
     template = "%(function)s(EPOCH FROM %(expressions)s)"
     output_field = FloatField()
 
-def get_user_productivity():
-    settings = JobSettings.objects.first()
+# Try ExtractEpoch; older Django may not have it.
+try:
+    from django.db.models.functions import ExtractEpoch
+    HAS_EXTRACT_EPOCH = True
+except Exception:
+    ExtractEpoch = None
+    HAS_EXTRACT_EPOCH = False
 
-    users = (
-        User.objects.annotate(
-            # total jobs completed
-            total_jobs_completed=Count(
-                "jobs", filter=Q(jobs__status="completed"), distinct=True
-            ),
-            total_jobs_assigned=Count("jobs", distinct=True),
-            total_enactment_allocated=Count("enactment_assignments", distinct=True),
-            total_time_spent=Sum(
-                ExpressionWrapper(
-                    F("jobs__sessions__ended_at") - F("jobs__sessions__started_at"),
-                    output_field=DurationField(),
-                )
-            ),
-        )
-        .annotate(total_seconds=ExtractEpoch(F("total_time_spent")))
-        .annotate(
-            total_hours=ExpressionWrapper(
-                F("total_seconds") / 3600.0,
-                output_field=FloatField(),
-            ),
-            average_jobs_per_hour=ExpressionWrapper(
-                F("total_jobs_completed") / (F("total_seconds") / 3600.0),
-                output_field=FloatField(),
-            ),
-            # 👇 pick quota based on is_part_time
-            # effective_quota=Case(
-            #     When(is_part_time=True, then=Value(settings.parttime_quota)),
-            #     default=Value(settings.quota),
-            #     output_field=FloatField(),
-            # ),
-            
-            productivity_ratio=ExpressionWrapper(
-                # F("average_jobs_per_hour") / F("effective_quota") * 100,
-                F("average_jobs_per_hour") / settings.quota * 100,
-                output_field=FloatField(),
-            ),
-        )
-    ).order_by('productivity_ratio')
-    return users
+# Import the actual session model from your jobs app
+try:
+    from jobs.models import ProvisionJobSession
+except Exception as e:
+    print("Import error: adjust import path for ProvisionJobSession:", e)
+    ProvisionJobSession = None
 
+def get_user_productivity(batch_id=None):
+    """
+    Python-only computation of per-user productivity.
+
+    Returns:
+      - a list of User model instances (materialized), each annotated with:
+         total_jobs_completed (int),
+         total_jobs_assigned (int),
+         total_enactment_allocated (int),
+         total_seconds (float),
+         total_hours (float, rounded to 4),
+         average_jobs_per_hour (float, rounded to 4),
+         productivity_ratio (float, rounded to 2)
+    Notes:
+      - batch_id (can be int or string depending on your model) restricts
+        which Provision/Enactment jobs and sessions are counted.
+      - Uses Python aggregation (iterating sessions) for consistency.
+      - Includes robust try/except blocks so it fails gracefully and prints errors.
+    """
+    try:
+        settings = JobSettings.objects.first()
+    except Exception as e:
+        print("Failed to load JobSettings:", e)
+        settings = None
+
+    # Candidate job-level lookups to detect jobs belonging to a batch (matches your models)
+    job_batch_lookups = [
+        "provision__batch__id",
+        "enactment_assignment__enactment__batch__id",
+    ]
+
+    # Candidate session-level lookups (ProvisionJobSession -> ProvisionJob -> Provision/EnactmentAssignment)
+    session_batch_lookups = [
+        "provision_job__provision__batch__id",
+        "provision_job__enactment_assignment__enactment__batch__id",
+    ]
+
+    # --- Step 1: choose base users list (either all users or those who have jobs in the batch) ---
+    try:
+        if batch_id:
+            # Find user IDs that have jobs in the given batch (safe tries)
+            user_ids = set()
+            try:
+                # Attempt each job-level lookup - if invalid, ignore it
+                for lk in job_batch_lookups:
+                    try:
+                        # Query ProvisionJob / Job relationship via User.jobs reverse relation:
+                        # User.objects.filter(**{f"jobs__{lk}": batch_id})[:1] validates the lookup
+                        # If no exception, collect all matching user ids
+                        ids_qs = User.objects.filter(**{f"jobs__{lk}": batch_id}).exclude(role='manager').exclude(is_superuser=True).values_list("pk", flat=True)
+                        user_ids.update(list(ids_qs))
+                    except (FieldError, Exception):
+                        # invalid lookup for this project; skip
+                        continue
+            except Exception as e:
+                print("Error detecting users via job-level lookups:", e)
+
+            if user_ids:
+                users_qs = User.objects.filter(pk__in=list(user_ids)).exclude(role='manager').exclude(is_superuser=True)
+            else:
+                # No job-level matches discovered — fall back to all users (we will still filter by sessions later)
+                users_qs = User.objects.all().exclude(role='manager').exclude(is_superuser=True)
+        else:
+            users_qs = User.objects.all().exclude(role='manager').exclude(is_superuser=True)
+    except Exception as e:
+        print("Error building base users queryset:", e)
+        users_qs = User.objects.none()
+
+    # Materialize users (we must iterate them and attach attributes)
+    try:
+        users_list = list(users_qs)
+    except Exception as e:
+        print("Failed to materialize users queryset:", e)
+        return []
+
+    # --- Step 2: find valid session-level lookups (so we can apply batch filter when querying sessions) ---
+    valid_session_lookups = []
+    try:
+        if batch_id:
+            for lk in session_batch_lookups:
+                try:
+                    # Validate by attempting a lightweight filter on the ProvisionJobSession model
+                    _ = ProvisionJobSession.objects.filter(**{lk: batch_id})[:1]
+                    valid_session_lookups.append(lk)
+                except (FieldError, Exception):
+                    continue
+    except Exception as e:
+        print("Error validating session lookups:", e)
+        valid_session_lookups = []
+
+    # Helper: build batch Q for sessions (OR of valid lookups) or None if none valid
+    session_batch_q = None
+    if valid_session_lookups:
+        try:
+            q_list = [Q(**{lk: batch_id}) for lk in valid_session_lookups]
+            from functools import reduce
+            import operator
+            session_batch_q = reduce(operator.or_, q_list)
+        except Exception as e:
+            print("Error building session batch Q:", e)
+            session_batch_q = None
+
+    # --- Step 3: query sessions for the users we will evaluate and accumulate per-user timedeltas ---
+    python_seconds_map = {}
+    try:
+        if users_list:
+            user_ids = [u.pk for u in users_list]
+
+            # Build base sessions filter for these users
+            sessions_filter = Q(provision_job__user__in=user_ids)
+
+            # If batch_id and session_batch_q available, apply it
+            if batch_id and session_batch_q is not None:
+                sessions_filter &= session_batch_q
+
+            # Fetch sessions and accumulate per-user timedelta sums
+            sessions_qs = ProvisionJobSession.objects.filter(sessions_filter).select_related("provision_job")
+            per_user_td = {}
+            for s in sessions_qs:
+                try:
+                    if s.started_at and s.ended_at:
+                        delta = s.ended_at - s.started_at
+                        per_user_td.setdefault(s.provision_job.user_id, timedelta(0))
+                        per_user_td[s.provision_job.user_id] += delta
+                except Exception:
+                    # ignore malformed rows but keep processing
+                    pass
+
+            # Convert to seconds
+            for uid, td in per_user_td.items():
+                try:
+                    python_seconds_map[uid] = td.total_seconds()
+                except Exception:
+                    python_seconds_map[uid] = 0.0
+    except Exception as e:
+        print("Error aggregating ProvisionJobSession rows in Python:", e)
+        python_seconds_map = {}
+
+    # --- Step 4: compute job counts per user (respect batch filter when possible) ---
+    # We'll compute:
+    #  - total_jobs_assigned (all jobs assigned to the user, optionally filtered by batch)
+    #  - total_jobs_completed (completed jobs, optionally filtered by batch)
+    #  - total_enactment_allocated (enactment_assignments count - not filtered by batch here)
+    try:
+        for u in users_list:
+            try:
+                # Base: total enactment_allocated (this field comes from related_name 'enactment_assignments')
+                try:
+                    total_enactment_allocated = u.enactment_assignments.count()
+                except Exception:
+                    total_enactment_allocated = 0
+
+                # For job counts, prefer using job-level batch lookups if they validate;
+                # else, fallback to counting all user's jobs (we might have prefiltered users_list by job existence earlier)
+                total_jobs_assigned = 0
+                total_jobs_completed = 0
+
+                if batch_id:
+                    # Try each valid job-level lookup to count jobs by batch
+                    counted = False
+                    for lk in job_batch_lookups:
+                        try:
+                            # validate this lookup by attempting a slice-based filter
+                            _ = u.jobs.filter(**{lk: batch_id})[:1]
+                            total_jobs_assigned = u.jobs.filter(**{lk: batch_id}).count()
+                            total_jobs_completed = u.jobs.filter(status="completed", **{lk: batch_id}).count()
+                            counted = True
+                            break
+                        except (FieldError, Exception):
+                            continue
+
+                    if not counted:
+                        # Last resort: if we couldn't apply job-level lookups, count all jobs assigned to user
+                        total_jobs_assigned = u.jobs.count()
+                        total_jobs_completed = u.jobs.filter(status="completed").count()
+                else:
+                    # No batch filter: count all user's jobs
+                    total_jobs_assigned = u.jobs.count()
+                    total_jobs_completed = u.jobs.filter(status="completed").count()
+
+                # Attach counts
+                setattr(u, "total_jobs_assigned", int(total_jobs_assigned or 0))
+                setattr(u, "total_jobs_completed", int(total_jobs_completed or 0))
+                setattr(u, "total_enactment_allocated", int(total_enactment_allocated or 0))
+            except Exception as inner_e:
+                print(f"Error computing job counts for user {getattr(u, 'pk','?')}: {inner_e}")
+                setattr(u, "total_jobs_assigned", 0)
+                setattr(u, "total_jobs_completed", 0)
+                setattr(u, "total_enactment_allocated", 0)
+    except Exception as e:
+        print("Error during per-user job counts loop:", e)
+
+    # --- Step 5: compute final derived metrics using the python_seconds_map (consistent rounding) ---
+    try:
+        quota_val = float(settings.quota) if settings and getattr(settings, "quota", None) else 1.0
+    except Exception:
+        quota_val = 1.0
+
+    final_users = []
+    try:
+        for u in users_list:
+            try:
+                secs = float(python_seconds_map.get(u.pk, 0.0) or 0.0)
+                hrs = secs / 3600.0 if secs > 0 else 0.0
+                # Guard division by zero
+                avg = (u.total_jobs_completed / hrs) if (hrs and u.total_jobs_completed) else 0.0
+                prod = (avg / quota_val * 100.0) if quota_val else 0.0
+
+                # consistent rounding: total_hours -> 4 decimals, avg -> 4 decimals, prod -> 2 decimals
+                total_hours = round(hrs, 4)
+                average_jobs_per_hour = round(avg, 4)
+                productivity_ratio = round(prod, 2)
+
+                # attach attributes used by template / view
+                setattr(u, "total_seconds", secs)
+                setattr(u, "total_hours", total_hours)
+                setattr(u, "average_jobs_per_hour", average_jobs_per_hour)
+                setattr(u, "productivity_ratio", productivity_ratio)
+
+                final_users.append(u)
+            except Exception as inner_e:
+                print(f"Error post-processing user {getattr(u,'pk','?')}: {inner_e}")
+    except Exception as e:
+        print("Error computing final user metrics:", e)
+
+    # --- Step 6: when batch_id was provided, make a final filter to only return users who actually had
+    # sessions or jobs in that batch (so UI shows only relevant users). This prevents showing all users
+    # when job discovery earlier failed to find matches.
+    if batch_id:
+        try:
+            filtered = []
+            # discover job-level user ids (best-effort) to ensure users with assigned jobs in the batch are included
+            job_user_ids = set()
+            try:
+                # Try to use ProvisionJob model via related manager names; adapt to your project if different
+                try:
+                    from jobs.models import ProvisionJob as JobModel
+                except Exception:
+                    JobModel = None
+
+                if JobModel is not None:
+                    try:
+                        job_user_ids.update(list(JobModel.objects.filter(provision__batch__id=batch_id).values_list("user_id", flat=True)))
+                    except Exception:
+                        pass
+                    try:
+                        job_user_ids.update(list(JobModel.objects.filter(enactment_assignment__enactment__batch__id=batch_id).values_list("user_id", flat=True)))
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            for u in final_users:
+                try:
+                    has_seconds = (getattr(u, "total_seconds", 0.0) or 0.0) > 0.0
+                    if has_seconds or (u.pk in job_user_ids):
+                        filtered.append(u)
+                except Exception:
+                    filtered.append(u)
+
+            final_users = filtered
+        except Exception as e:
+            print("Error applying final batch filter to materialized users:", e)
+
+    # Return the materialized list (the index view will sort it according to UI params)
+    return final_users
 def index(request):
     if request.user.role == 'user':
         return redirect("jobs")
 
+    # Query params
     sort = request.GET.get("sort", "productivity_ratio")  # default field
     order = request.GET.get("order", "asc")
+    selected_batch_raw = request.GET.get("batch", None)
 
-    users = get_user_productivity()
+    # Validate selected_batch: coerce to int if provided, else None
+    selected_batch = None
+    try:
+        if selected_batch_raw not in (None, "", "None"):
+            try:
+                selected_batch = int(selected_batch_raw)
+            except (ValueError, TypeError):
+                selected_batch = None
+    except Exception:
+        selected_batch = None
 
+    # Try to call get_user_productivity(batch_id) if that signature exists,
+    # otherwise fall back to get_user_productivity()
+    try:
+        # prefer server-side batch filtering if supported
+        try:
+            users = get_user_productivity(selected_batch)
+        except TypeError:
+            # function doesn't accept arg -> call without
+            users = get_user_productivity()
+    except Exception as e:
+        print("Error fetching user productivity:", e)
+        users = []  # fallback empty list
+
+    # Mapping for sorting keys -> either ORM field(s) or attribute name(s)
     sort_map = {
         "username": "username",
-        "name": ["last_name", "first_name"],
+        "name": ("last_name", "first_name"),
         "work_type": "is_part_time",
         "total_jobs_assigned": "total_jobs_assigned",
         "total_jobs_completed": "total_jobs_completed",
@@ -100,15 +370,46 @@ def index(request):
         "productivity_ratio": "productivity_ratio",
     }
 
+    # Apply ordering
     if sort in sort_map:
         sort_fields = sort_map[sort]
-        if not isinstance(sort_fields, (list, tuple)):
-            sort_fields = [sort_fields]
-        if order == "desc":
-            sort_fields = [f"-{field}" for field in sort_fields]
-        users = users.order_by(*sort_fields)
+        # If users is a queryset, do DB ordering
+        try:
+            if hasattr(users, "order_by"):
+                if not isinstance(sort_fields, (list, tuple)):
+                    orm_fields = [sort_fields]
+                else:
+                    orm_fields = list(sort_fields)
+                if order == "desc":
+                    orm_fields = [f"-{f}" for f in orm_fields]
+                users = users.order_by(*orm_fields)
+            else:
+                # Python list sort
+                reverse = (order == "desc")
 
-    # build columns with next_order info for template
+                def _get_attr(u, key):
+                    # tuple/list -> return tuple of attributes
+                    if isinstance(key, (list, tuple)):
+                        vals = []
+                        for k in key:
+                            vals.append(getattr(u, k, "") or "")
+                        return tuple(vals)
+                    val = getattr(u, key, None)
+                    if val is None:
+                        # return small value for numeric fields so they sort last when ascending
+                        if key in ("total_jobs_assigned", "total_jobs_completed", "total_hours", "average_jobs_per_hour", "productivity_ratio"):
+                            return float("-inf") if not reverse else float("inf")
+                        return ""
+                    return val
+
+                try:
+                    users.sort(key=lambda u: _get_attr(u, sort_fields), reverse=reverse)
+                except Exception as e:
+                    print("Python-side sort failed:", e)
+        except Exception as e:
+            print("Error applying ordering:", e)
+
+    # Build columns with next_order info for template
     columns = []
     for field, label in [
         ("username", "ID"),
@@ -126,14 +427,26 @@ def index(request):
             next_order = "asc"
         columns.append((field, label, next_order))
 
+    # Load batches for the dropdown (defensive)
+    try:
+        from enactments.models import Batch
+        batches = Batch.objects.all()
+    except Exception as e:
+        print("Could not load Batch list:", e)
+        batches = []
+
     context = {
         "active_page": "productivity",
         "users": users,
         "columns": columns,
         "current_sort": sort,
         "current_order": order,
+        "batches": batches,
+        "selected_batch": selected_batch,
     }
     return render(request, "productivity/index.html", context)
+
+
 
 def detail(request, user_id):
     """
@@ -244,6 +557,7 @@ def detail(request, user_id):
         for job in jobs_for_sum:
             try:
                 total_duration += float(getattr(job, 'total_time_minutes', 0) or 0)
+                print(f"Job {getattr(job,'id','?')} duration: {getattr(job,'total_time_minutes','?')} mins")
             except Exception as inner_e:
                 print(f"Error reading total_time_minutes for job {getattr(job,'id','?')}: {inner_e}")
     except Exception as e:
@@ -285,131 +599,246 @@ def detail(request, user_id):
     export_param = request.GET.get('export')
     if export_param == 'excel':
         try:
-            # Ensure we evaluate the full queryset and prefetch sessions to avoid N+1
+            # Prefetch to avoid N+1
             jobs_to_export = jobs_qs.select_related(
                 'provision__batch',
                 'enactment_assignment__enactment'
             ).prefetch_related('sessions')
 
-            # Try XLSX with openpyxl
             try:
                 import openpyxl
                 from openpyxl.utils import get_column_letter
-                from openpyxl.styles import Font
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+                from openpyxl.utils.datetime import to_excel as openpyxl_to_excel
                 from datetime import datetime as _dt
+            except Exception as e:
+                # openpyxl missing -> return HTTP 500 so caller knows export failed.
+                print("openpyxl not available:", e)
+                return HttpResponse("openpyxl missing", status=500)
 
-                wb = openpyxl.Workbook()
-                ws = wb.active
-                ws.title = "Productivity"
+            # ---------- Helper: SAME DATETIME BEHAVIOR AS export_all_productivity ----------
+            def make_naive_for_excel(dt):
+                """
+                Matches export_all_productivity:
+                Converts aware -> local timezone -> naive for Excel.
+                Returns None on error or if dt is None.
+                """
+                try:
+                    if dt is None:
+                        return None
+                    if dj_timezone.is_aware(dt):
+                        tz = dj_timezone.get_default_timezone()
+                        dt_local = dt.astimezone(tz)
+                        return dj_timezone.make_naive(dt_local, tz)
+                    return dt
+                except Exception as e:
+                    print(f"Error normalizing datetime: {e}")
+                    return None
 
-                # Header row
-                headers = ["Batch", "Provision Ref(s)", "Enactment Citation",
-                        "Start Date", "End Date", "Duration (Minutes)", "Status"]
-                for col_idx, h in enumerate(headers, 1):
-                    cell = ws.cell(row=1, column=col_idx, value=h)
-                    cell.font = Font(bold=True)
+            # ---------- Workbook + sheet ----------
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Productivity Report"
 
-                # Rows
-                row = 2
-                for job in jobs_to_export:
-                    # safe fetch values, avoid throwing on missing relations
-                    batch_name = getattr(getattr(job, 'provision', None), 'batch', None)
-                    batch_name = batch_name.name if batch_name else ""
-                    provision_title = getattr(job.provision, 'title', '') if getattr(job, 'provision', None) else ""
+            # Cosmetic styles
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill("solid", fgColor="4F81BD")  # bluish header
+            odd_fill = PatternFill("solid", fgColor="F2F2F2")     # light grey banding
+            center_align = Alignment(vertical="center", horizontal="left", wrap_text=True)
+            right_align = Alignment(horizontal="right", vertical="center")
+            thin_side = Side(border_style="thin", color="DDDDDD")
+            border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+
+            headers = [
+                "Batch", "Provision Ref(s)", "Enactment Citation",
+                "Start Date", "End Date", "Duration (Minutes)", "Status"
+            ]
+
+            # Optional report title row (merged) -- comment out if you don't want it.
+            report_title = f"Productivity Report — generated { _dt.now().strftime('%Y-%m-%d %H:%M:%S') }"
+            try:
+                ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+                title_cell = ws.cell(row=1, column=1, value=report_title)
+                title_cell.font = Font(bold=True, size=14)
+                title_cell.alignment = Alignment(horizontal="left", vertical="center")
+                header_row_idx = 2
+            except Exception:
+                # If merging fails for any reason, fall back to no merged title.
+                header_row_idx = 1
+
+            # Header row (will be at header_row_idx)
+            for col_idx, h in enumerate(headers, 1):
+                hr = ws.cell(row=header_row_idx, column=col_idx, value=h)
+                hr.font = header_font
+                hr.fill = header_fill
+                hr.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                hr.border = border
+
+            # Start data population on next row
+            row = header_row_idx + 1
+            for idx, job in enumerate(jobs_to_export, start=0):
+                try:
+                    # Derived values
+                    batch_obj = getattr(getattr(job, "provision", None), "batch", None)
+                    batch_name = batch_obj.name if batch_obj else ""
+                    provision_title = getattr(job.provision, "title", "") if job.provision else ""
                     citation = ""
-                    if getattr(job, 'enactment_assignment', None) and getattr(job.enactment_assignment, 'enactment', None):
+                    if getattr(job, "enactment_assignment", None) and getattr(job.enactment_assignment, "enactment", None):
                         citation = job.enactment_assignment.enactment.title or ""
-                    start_date = job.start_date.isoformat() if job.start_date else ""
-                    end_date = job.end_date.isoformat() if job.end_date else ""
-                    # Use model property (minutes float). Coerce to float and round to 2 decimals
+
+                    # ---------- Start Date (EXCEL DATETIME LIKE MAIN EXPORT) ----------
+                    start_cell_value = None
+                    if job.start_date:
+                        try:
+                            naive_dt = make_naive_for_excel(job.start_date)
+                            if naive_dt:
+                                # openpyxl_to_excel returns an Excel serial number (float)
+                                start_cell_value = openpyxl_to_excel(naive_dt)
+                        except Exception as e:
+                            print(f"Start date conversion error for job {getattr(job, 'id', 'unknown')}: {e}")
+
+                    # ---------- End Date ----------
+                    end_cell_value = None
+                    if job.end_date:
+                        try:
+                            naive_dt = make_naive_for_excel(job.end_date)
+                            if naive_dt:
+                                end_cell_value = openpyxl_to_excel(naive_dt)
+                        except Exception as e:
+                            print(f"End date conversion error for job {getattr(job, 'id', 'unknown')}: {e}")
+
+                    # Duration (ensure numeric)
                     try:
                         duration_minutes = float(job.total_time_minutes or 0)
                     except Exception:
-                        print(f"Error reading total_time_minutes for job {getattr(job,'id','?')}")
                         duration_minutes = 0.0
-                    status = job.status or ""
 
+                    # Write cells
                     ws.cell(row=row, column=1, value=batch_name)
                     ws.cell(row=row, column=2, value=provision_title)
                     ws.cell(row=row, column=3, value=citation)
-                    ws.cell(row=row, column=4, value=start_date)
-                    ws.cell(row=row, column=5, value=end_date)
-                    ws.cell(row=row, column=6, value=round(duration_minutes, 2))
-                    ws.cell(row=row, column=7, value=status)
+
+                    # Write Start Date cell (as Excel serial float)
+                    if isinstance(start_cell_value, (float, int)):
+                        cell = ws.cell(row=row, column=4, value=start_cell_value)
+                        # Use Excel-friendly format (month short, day, year, 12-hour time)
+                        cell.number_format = 'mmm d, yyyy h:mm AM/PM'
+                        cell.alignment = center_align
+                    else:
+                        ws.cell(row=row, column=4, value="")
+
+                    # Write End Date cell
+                    if isinstance(end_cell_value, (float, int)):
+                        cell = ws.cell(row=row, column=5, value=end_cell_value)
+                        cell.number_format = 'mmm d, yyyy h:mm AM/PM'
+                        cell.alignment = center_align
+                    else:
+                        ws.cell(row=row, column=5, value="")
+
+                    # Duration numeric column (F)
+                    dur_cell = ws.cell(row=row, column=6, value=duration_minutes)  # keep full precision
+                    dur_cell.number_format = '0.00'
+                    dur_cell.alignment = right_align
+
+                    ws.cell(row=row, column=7, value=job.status or "")
+
+                    # Row styling: zebra banding + borders
+                    for col in range(1, len(headers) + 1):
+                        c = ws.cell(row=row, column=col)
+                        c.border = border
+                        # Apply light fill for odd rows
+                        if (row - header_row_idx) % 2 == 1:
+                            c.fill = odd_fill
+
                     row += 1
 
-                # Footer row with totals
-                try:
-                    # Compute total_duration by summing job.total_time_minutes (jobs_to_export is prefetched)
-                    total_duration = 0.0
-                    for job in jobs_to_export:
-                        try:
-                            total_duration += float(job.total_time_minutes or 0)
-                        except Exception:
-                            pass
-                    footer_row = row + 1
-                    ws.cell(row=footer_row, column=5, value="Total (minutes):").font = Font(bold=True)
-                    ws.cell(row=footer_row, column=6, value=round(total_duration, 2)).font = Font(bold=True)
                 except Exception as e:
-                    print("Error computing total for export:", e)
+                    # Keep going if an individual job row fails; log for debugging.
+                    print(f"Error writing job row (job id: {getattr(job, 'id', 'unknown')}): {e}")
+                    row += 1  # still advance row to keep report aligned
 
-                # Auto-size columns (simple)
-                for i, _ in enumerate(headers, 1):
-                    col_letter = get_column_letter(i)
-                    ws.column_dimensions[col_letter].auto_size = True
+            last_data_row = row - 1
 
-                # Prepare response
+            # ---------- Footer / Totals ----------
+            try:
+                footer_row = last_data_row + 2
+                # Put a label and a SUM formula for the duration column (column F)
+                label_cell = ws.cell(row=footer_row, column=5, value="Total (minutes):")
+                label_cell.font = Font(bold=True)
+                label_cell.alignment = right_align
+                label_cell.border = border
+
+                # Use Excel formula to sum the duration column so totals update if user edits
+                sum_formula = f"=SUM(F{header_row_idx + 1}:F{last_data_row})" if last_data_row >= (header_row_idx + 1) else "=0"
+                total_cell = ws.cell(row=footer_row, column=6, value=sum_formula)
+                total_cell.font = Font(bold=True)
+                total_cell.number_format = '0.00'
+                total_cell.border = border
+                total_cell.alignment = right_align
+            except Exception as e:
+                print("Footer totals error:", e)
+
+            # ---------- Filters, freeze panes, view tweaks ----------
+            try:
+                # Determine the reference for the auto filter (from header row to last data row)
+                top = header_row_idx
+                bottom = last_data_row
+                ws.auto_filter.ref = f"A{top}:G{bottom}"
+
+                # Freeze header row so it's always visible
+                ws.freeze_panes = ws['A' + str(top + 1)]
+
+                # Fit column widths based on max length of content in each column
+                # Provide a minimum and maximum width to avoid extremely narrow/wide columns.
+                min_width = 10
+                max_width = 60
+                for col_idx in range(1, len(headers) + 1):
+                    column = get_column_letter(col_idx)
+                    max_length = 0
+                    try:
+                        for r in range(top, bottom + 1):
+                            cell = ws.cell(row=r, column=col_idx)
+                            if cell.value is None:
+                                continue
+                            # Convert everything to string for length measurement
+                            v = str(cell.value)
+                            # treat dates (excel serials) as shorter
+                            if isinstance(cell.value, (float, int)) and col_idx in (4, 5):
+                                v = _dt.now().strftime('%Y-%m-%d %H:%M')  # representative length
+                            length = len(v)
+                            if length > max_length:
+                                max_length = length
+                    except Exception:
+                        max_length = 0
+                    # heuristics: small padding
+                    adjusted_width = min(max(max_length + 2, min_width), max_width)
+                    try:
+                        ws.column_dimensions[column].width = adjusted_width
+                    except Exception:
+                        # ignore column width set failure
+                        pass
+            except Exception as e:
+                print("View/widths/filters error:", e)
+
+            # ---------- Response ----------
+            try:
                 response = HttpResponse(
                     content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
-                filename = f"productivity_{user.id}_{_dt.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-                response["Content-Disposition"] = f'attachment; filename="{filename}"'
+                # Make filename safe for Windows file systems and include timestamp
+                safe_name = "".join(c for c in (user.get_full_name() or "user") if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                filename = f"productivity_{safe_name}_{_dt.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                response["Content-Disposition"] = f'attachment; filename=\"{filename}\"'
                 wb.save(response)
                 return response
-
-            except Exception as e_openpyxl:
-                print("openpyxl not available or error creating xlsx:", e_openpyxl)
-                # fall through to CSV fallback
-
-            # CSV fallback
-            import csv
-            from io import StringIO
-            output = StringIO()
-            writer = csv.writer(output)
-            writer.writerow(["Batch", "Provision Ref(s)", "Enactment Citation",
-                            "Start Date", "End Date", "Duration (Minutes)", "Status"])
-            total_duration = 0.0
-            for job in jobs_to_export:
-                batch_name = getattr(getattr(job, 'provision', None), 'batch', None)
-                batch_name = batch_name.name if batch_name else ""
-                provision_title = getattr(job.provision, 'title', '') if getattr(job, 'provision', None) else ""
-                citation = ""
-                if getattr(job, 'enactment_assignment', None) and getattr(job.enactment_assignment, 'enactment', None):
-                    citation = job.enactment_assignment.enactment.title or ""
-                start_date = job.start_date.isoformat() if job.start_date else ""
-                end_date = job.end_date.isoformat() if job.end_date else ""
-                try:
-                    duration_minutes = float(job.total_time_minutes or 0)
-                except Exception:
-                    duration_minutes = 0.0
-                status = job.status or ""
-                writer.writerow([batch_name, provision_title, citation,
-                                start_date, end_date, round(duration_minutes, 2), status])
-                total_duration += duration_minutes
-
-            writer.writerow([])
-            writer.writerow(["", "", "", "", "Total (minutes):", round(total_duration, 2)])
-            csv_data = output.getvalue()
-            output.close()
-            response = HttpResponse(csv_data, content_type='text/csv')
-            filename = f"productivity_{user.id}_{_dt.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            response["Content-Disposition"] = f'attachment; filename="{filename}"'
-            return response
+            except Exception as e:
+                print("Failed to save workbook to response:", e)
+                return HttpResponse("Failed to create Excel file", status=500)
 
         except Exception as e:
+            # top-level failure: log and continue to render the normal page (fallback behavior)
             print("Export error:", e)
-            # fall back to continuing page render if export fails (so user isn't blocked)
-
+            # fallback = just continue normal page render
     
     
 
@@ -434,6 +863,7 @@ def detail(request, user_id):
         for job in jobs_for_sum:
             try:
                 val = job.total_time_minutes or 0
+                print("VAL:", val)
                 total_duration += float(val)
             except Exception as inner_e:
                 print(f"Error reading total_time_minutes for job {getattr(job,'id','?')}: {inner_e}")
@@ -567,7 +997,7 @@ def detail(request, user_id):
     except Exception as e:
         print(f"Error building page window for user {user_id}: {e}")
         page_window = [1]
-
+    average_jobs_per_hour = total_jobs_count / (total_duration / 60) if total_duration > 0 else 0
     context = {
         "user": user,
         "jobs": page_obj,
@@ -582,495 +1012,543 @@ def detail(request, user_id):
         "base_query": base_query,
         "page_window": page_window,   # <-- the trimmed page list for the template\
         "total_duration": total_duration,
-        "total_duration_display": total_duration_display,
+        "total_duration_display": average_jobs_per_hour,
         "user_display_name": user_display_name,
     }
 
     return render(request, "productivity/detail.html", context=context)
 
 
-def export_to_excel(request):
-    # Get user productivity data
-    users = get_user_productivity()
+# def export_to_excel(request):
+#     # Get user productivity data
+#     users = get_user_productivity()
 
-    # Create an in-memory workbook
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Productivity Report"
+#     # Create an in-memory workbook
+#     wb = openpyxl.Workbook()
+#     ws = wb.active
+#     ws.title = "Productivity Report"
 
-    # Define the headers
-    headers = [
-        "Username",
-        "Total Jobs Assigned",
-        "Total Jobs Completed",
-        "Total Enactments Allocated",
-        "Total Time Spent (hours)",
-        "Average Jobs per Hour",
+#     # Define the headers
+#     headers = [
+#         "Username",
+#         "Total Jobs Assigned",
+#         "Total Jobs Completed",
+#         "Total Enactments Allocated",
+#         "Total Time Spent (hours)",
+#         "Average Jobs per Hour",
+#         "Productivity Ratio (%)",
+#     ]
 
-        "Productivity Ratio (%)",
-    ]
+#     # Add headers to the first row
+#     for col_num, header in enumerate(headers, start=1):
+#         cell = ws.cell(row=1, column=col_num, value=header)
+#         cell.font = Font(bold=True)
+#         cell.fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
-    # Add headers to the first row
-    for col_num, header in enumerate(headers, start=1):
-        cell = ws.cell(row=1, column=col_num, value=header)
-        cell.font = Font(bold=True)
-        cell.fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+#     # Add data for each user
+#     for row_num, user in enumerate(users, start=2):
+#         ws.cell(row=row_num, column=1, value=user.username)
+#         ws.cell(row=row_num, column=2, value=user.total_jobs_assigned)
+#         ws.cell(row=row_num, column=3, value=user.total_jobs_completed)
+#         ws.cell(row=row_num, column=4, value=user.total_enactment_allocated)
+#         hours_cell = ws.cell(row=row_num, column=5, value=user.total_hours)
+#         hours_cell.number_format = "0.00"
 
-    # Add data for each user
-    for row_num, user in enumerate(users, start=2):
-        ws.cell(row=row_num, column=1, value=user.username)
-        ws.cell(row=row_num, column=2, value=user.total_jobs_assigned)
-        ws.cell(row=row_num, column=3, value=user.total_jobs_completed)
-        ws.cell(row=row_num, column=4, value=user.total_enactment_allocated)
-        hours_cell = ws.cell(row=row_num, column=5, value=user.total_hours)
-        hours_cell.number_format = "0.00"
+#         avg_jobs_cell = ws.cell(row=row_num, column=6, value=user.average_jobs_per_hour)
+#         avg_jobs_cell.number_format = "0.00"
+#         productivity_cell = ws.cell(row=row_num, column=8, value=user.productivity_ratio)
+#         productivity_cell.number_format = "0.00"
+#     # Adjust column width to fit data
+#     for col in range(1, len(headers) + 1):
+#         max_length = 0
+#         column = get_column_letter(col)
+#         for row in range(1, len(users) + 2):  # Include header row
+#             cell = ws[column + str(row)]
+#             try:
+#                 if len(str(cell.value)) > max_length:
+#                     max_length = len(cell.value)
+#             except:
+#                 pass
+#         adjusted_width = (max_length + 2)
+#         ws.column_dimensions[column].width = adjusted_width
 
-        avg_jobs_cell = ws.cell(row=row_num, column=6, value=user.average_jobs_per_hour)
-        avg_jobs_cell.number_format = "0.00"
-        productivity_cell = ws.cell(row=row_num, column=8, value=user.productivity_ratio)
-        productivity_cell.number_format = "0.00"
-    # Adjust column width to fit data
-    for col in range(1, len(headers) + 1):
-        max_length = 0
-        column = get_column_letter(col)
-        for row in range(1, len(users) + 2):  # Include header row
-            cell = ws[column + str(row)]
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(cell.value)
-            except:
-                pass
-        adjusted_width = (max_length + 2)
-        ws.column_dimensions[column].width = adjusted_width
+#     date_time = datetime.now().strftime("%m%d%Y_%H%M%S") 
 
-    date_time = datetime.now().strftime("%m%d%Y_%H%M%S") 
+#     # Create an HTTP response with the Excel file as an attachment
+#     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+#     response["Content-Disposition"] = f'attachment; filename="user_productivity_report_{date_time}.xlsx"'
 
-    # Create an HTTP response with the Excel file as an attachment
-    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = f'attachment; filename="user_productivity_report_{date_time}.xlsx"'
+#     # Save the workbook to the response
+#     wb.save(response)
 
-    # Save the workbook to the response
-    wb.save(response)
-
-    return response
+#     return response
 
 
 def export_all_productivity(request):
     """
-    Export workbook where:
-      - First sheet = Summary matching index columns (ID, Username, Full Name, Employment,
-        Total Jobs Assigned, Total Jobs Completed, Total Hours, Average Jobs Per Hour, Productivity (%))
-      - Subsequent sheets = one sheet per user listing that user's jobs
-    Date/time formatting:
-      - XLSX: real Excel datetime cells with a readable number format (e.g. "Dec. 3, 2025, 4:16 PM")
-      - CSV: formatted strings like "Dec. 03, 2025, 04:16 PM"
-    Respects GET params:
-      - batch=<id>  (filter jobs to that batch; summary numbers reflect this)
-      - status (optional) -> filter job.status (used for job lists; defaults to 'completed')
-      - user_sort / order optional for ordering users in summary
+    Produces an XLSX workbook containing:
+      - A Summary sheet (per-user aggregates)
+      - One sheet per user (detailed rows)
+    Enhancements:
+      - Styled headers (colored, bold), freeze panes, auto-filters
+      - Zebra banding + thin borders for readability
+      - Excel-friendly datetime serials and readable number formats
+      - SUM() formulas for totals so users can edit values and refresh totals
+      - Robust try/except around risky operations so a single bad row doesn't break export
+      - Safe sheet and filename handling for Excel/Windows
     """
 
-    selected_batch = request.GET.get('batch')
-    status_filter = request.GET.get('status', 'completed')  # default for job lists
-    user_sort = request.GET.get('user_sort')
-    user_order = request.GET.get('order', 'asc')
+    try:
+        from datetime import datetime as _dt
+        import re
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        from openpyxl.utils.datetime import to_excel as openpyxl_to_excel
+        from django.http import HttpResponse
+        from django.db.models import Sum
+        from django.utils import timezone as dj_timezone
+        # If your project imports User differently, keep your existing import above this function.
 
-    # Build users queryset (ordered if requested)
+    except Exception as e:
+        print("Required imports for export_all_productivity failed:", e)
+        return HttpResponse("Export dependencies missing", status=500)
+
+    # --- Query params ---
+    selected_batch = request.GET.get("batch")
+    status_filter = request.GET.get("status", "completed")
+    user_sort = request.GET.get("user_sort")
+    user_order = request.GET.get("order", "asc")
+    settings = JobSettings.objects.first()
+
+    # --- Build users queryset with safe ordering ---
     try:
         users_qs = User.objects.all()
-        allowed_user_sort = {"username": "username", "last_name": "last_name", "first_name": "first_name", "id": "id"}
+        allowed_user_sort = {
+            "username": "username",
+            "last_name": "last_name",
+            "first_name": "first_name",
+            "id": "id",
+        }
         if user_sort and user_sort in allowed_user_sort:
             orm = allowed_user_sort[user_sort]
-            users_qs = users_qs.order_by(f"-{orm}") if user_order == 'desc' else users_qs.order_by(orm)
+            users_qs = users_qs.order_by(f"-{orm}") if user_order == "desc" else users_qs.order_by(orm)
     except Exception as e:
-        print("Error building users queryset for export:", e)
+        print("Error building users queryset:", e)
         users_qs = User.objects.none()
 
-    # Try openpyxl
+    # --- openpyxl availability (explicit) ---
     try:
-        import openpyxl
-        from openpyxl.utils import get_column_letter
-        from openpyxl.styles import Font
-        from openpyxl.utils.datetime import to_excel as openpyxl_to_excel
-        has_openpyxl = True
+        # already imported above
+        pass
     except Exception as e:
-        print("openpyxl not available:", e)
-        has_openpyxl = False
+        print("Openpyxl missing! Export cannot continue:", e)
+        return HttpResponse("openpyxl missing", status=500)
 
-    # Helper safe sheet name
-    def safe_sheet_name(name, fallback):
+    # --- Helpers ---
+    def safe_sheet_name(full_name, fallback):
         try:
-            if not name:
+            if not full_name:
                 return fallback
-            safe = slugify(name)[:28]
-            if not safe:
-                safe = fallback
-            return safe
+            name = re.sub(r"\s+", " ", full_name).strip()
+            name = re.sub(r'[:\\\/\?\*\[\]]', "", name)  # remove illegal chars
+            name = name[:31]  # Excel sheet max length
+            return name or fallback
         except Exception:
             return fallback
 
-    # Headers for per-user sheets
-    headers = ["Batch", "Provision Ref(s)", "Enactment Citation", "Start Date", "End Date", "Duration (Minutes)", "Status"]
+    def make_naive_for_excel(dt):
+        """
+        Convert aware datetime -> local timezone -> naive (matching other exports).
+        Returns None on failure or if dt is falsy.
+        """
+        try:
+            if not dt:
+                return None
+            if dj_timezone.is_aware(dt):
+                tz = dj_timezone.get_default_timezone()
+                dt_local = dt.astimezone(tz)
+                return dj_timezone.make_naive(dt_local, tz)
+            return dt
+        except Exception as e:
+            print("Datetime normalization error:", e)
+            return None
 
-    # Build per-user summary info (matching index)
+    # --- Per-user sheet headers (User ID + Full Name first) ---
+    headers = [
+        "User ID",
+        "Full Name",
+        "Batch",
+        "Provision Ref(s)",
+        "Enactment Citation",
+        "Start Date",
+        "End Date",
+        "Duration (Minutes)",
+        "Status",
+    ]
+
+    # --- Build per-user summary data ---
     user_summaries = []
     for user in users_qs:
         try:
-            # Base job queryset for this user respecting the batch filter
             jobs_base = user.jobs.all()
             if selected_batch:
                 jobs_base = jobs_base.filter(provision__batch__id=selected_batch)
 
-            # Assigned jobs count (respecting batch filter)
-            try:
-                total_jobs_assigned = jobs_base.count()
-            except Exception as e:
-                print(f"Error counting assigned jobs for user {user.id}: {e}")
-                total_jobs_assigned = 0
+            total_jobs_assigned = jobs_base.count()
+            total_jobs_completed = jobs_base.filter(status="completed").count()
 
-            # Completed jobs count (respecting batch filter)
-            try:
-                total_jobs_completed = jobs_base.filter(status="completed").count()
-            except Exception as e:
-                print(f"Error counting completed jobs for user {user.id}: {e}")
-                total_jobs_completed = 0
-
-            # Total minutes across completed jobs: prefer DB aggregate on sessions__duration
+            # Try aggregate sessions duration first (preferred)
             total_minutes = 0.0
             try:
-                agg = jobs_base.filter(status="completed").aggregate(total_td=Sum('sessions__duration'))
-                total_td = agg.get('total_td')
-                if total_td is not None:
-                    total_minutes = total_td.total_seconds() / 60.0
+                agg = jobs_base.filter(status="completed").aggregate(total_td=Sum("sessions__duration"))
+                td = agg.get("total_td")
+                if td:
+                    # assume td is a timedelta
+                    total_minutes = (td.total_seconds() / 60.0)
                 else:
                     total_minutes = 0.0
-            except Exception as e:
-                print(f"DB aggregation failed for user {user.id}, falling back to property sum: {e}")
+            except Exception:
+                # fallback to summing job.total_time_minutes
                 try:
-                    jobs_prefetched = jobs_base.filter(status="completed").prefetch_related('sessions')
+                    for job in jobs_base.filter(status="completed").prefetch_related("sessions"):
+                        try:
+                            total_minutes += float(job.total_time_minutes or 0)
+                        except Exception:
+                            pass
                 except Exception:
-                    jobs_prefetched = jobs_base.filter(status="completed")
-                total_minutes = 0.0
-                for job in jobs_prefetched:
-                    try:
-                        total_minutes += float(job.total_time_minutes or 0)
-                    except Exception:
-                        print(f"Error reading total_time_minutes for job {getattr(job,'id','?')}")
+                    total_minutes = 0.0
 
-            # Convert minutes -> hours
             total_hours = total_minutes / 60.0 if total_minutes else 0.0
+            average_jobs_per_hour = (total_jobs_completed / total_hours) if total_hours > 0 else 0.0
+            print("total_jobs_completed:", total_jobs_completed, " total_hours:", total_hours, " average_jobs_per_hour:", f"{average_jobs_per_hour:.4f}")
+            productivity_ratio = (average_jobs_per_hour / settings.quota * 100) if total_jobs_assigned else 0.0
 
-            # average jobs per hour (guard divide-by-zero)
-            try:
-                average_jobs_per_hour = (total_jobs_completed / total_hours) if total_hours > 0 else 0.0
-            except Exception as e:
-                print(f"Error computing average_jobs_per_hour for user {user.id}: {e}")
-                average_jobs_per_hour = 0.0
-
-            # productivity ratio
-            try:
-                productivity_ratio = (total_jobs_completed / total_jobs_assigned * 100.0) if total_jobs_assigned > 0 else 0.0
-            except Exception as e:
-                print(f"Error computing productivity_ratio for user {user.id}: {e}")
-                productivity_ratio = 0.0
-
-            # employment
-            try:
-                employment = "Part-time" if getattr(user, "is_part_time", False) else "Full-time"
-            except Exception:
-                employment = ""
-
-            # full name
-            try:
-                if hasattr(user, "get_full_name") and user.get_full_name():
-                    full_name = user.get_full_name()
-                else:
-                    full_name = f"{getattr(user,'last_name','')}, {getattr(user,'first_name','')}".strip(", ")
-                    if not full_name:
-                        full_name = getattr(user, "username", "")
-            except Exception:
-                full_name = getattr(user, "username", "")
-
-            # jobs_qs for per-user sheets (respect status_filter)
-            try:
-                jobs_for_sheet = jobs_base.filter(status=status_filter) if status_filter else jobs_base
-            except Exception:
-                jobs_for_sheet = jobs_base
+            if hasattr(user, "get_full_name") and user.get_full_name():
+                full_name = user.get_full_name()
+            else:
+                full_name = f"{user.last_name}, {user.first_name}".strip(", ") or user.username
 
             user_summaries.append({
                 "user": user,
-                "id": getattr(user, "id", ""),
-                "username": getattr(user, "username", ""),
+                "id": user.id,
+                "username": user.username,
                 "full_name": full_name,
-                "employment": employment,
+                "employment": "Part-time" if getattr(user, "is_part_time", False) else "Full-time",
                 "total_jobs_assigned": total_jobs_assigned,
                 "total_jobs_completed": total_jobs_completed,
                 "total_hours": total_hours,
                 "average_jobs_per_hour": average_jobs_per_hour,
                 "productivity_ratio": productivity_ratio,
-                "jobs_qs": jobs_for_sheet,
+                "jobs_qs": jobs_base.filter(status=status_filter),
             })
-
         except Exception as e:
-            print(f"Error preparing summary for user {getattr(user,'id','?')}: {e}")
+            print(f"Error preparing summary for user {getattr(user, 'id', 'unknown')}: {e}")
 
-    # ---------- XLSX path ----------
-    if has_openpyxl:
+    # --------------------- BUILD XLSX ---------------------
+    try:
+        wb = openpyxl.Workbook()
+        # Remove default sheet; we'll create a styled Summary sheet explicitly
         try:
-            wb = openpyxl.Workbook()
-            default = wb.active
-            wb.remove(default)
-        except Exception as e:
-            print("Error creating workbook:", e)
-            has_openpyxl = False
+            wb.remove(wb.active)
+        except Exception:
+            # ignore if remove fails
+            pass
+    except Exception as e:
+        print("Workbook creation failed:", e)
+        return HttpResponse("Excel workbook error", status=500)
 
-    if has_openpyxl:
+    # --- Styles ---
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="4F81BD")  # bluish header
+    odd_fill = PatternFill("solid", fgColor="F9F9F9")
+    center_align = Alignment(vertical="center", horizontal="left", wrap_text=True)
+    right_align = Alignment(horizontal="right", vertical="center")
+    thin_side = Side(border_style="thin", color="DDDDDD")
+    border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+
+    # --- Summary sheet ---
+    try:
+        ws_sum = wb.create_sheet("Summary")
+        sum_headers = [
+            "ID", "Username", "Full Name", "Employment",
+            "Total Jobs Assigned", "Total Jobs Completed",
+            "Total Hours", "Average Jobs Per Hour", "Productivity (%)"
+        ]
+
+        # Optional title row (merged)
         try:
-            # Summary sheet first
-            ws_sum = wb.create_sheet(title="Summary")
-            sum_headers = ["ID", "Username", "Full Name", "Employment", "Total Jobs Assigned",
-                           "Total Jobs Completed", "Total Hours", "Average Jobs Per Hour", "Productivity (%)"]
-            for col_idx, h in enumerate(sum_headers, 1):
-                ws_sum.cell(row=1, column=col_idx, value=h).font = Font(bold=True)
+            report_title = f"Productivity Summary — generated {_dt.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            ws_sum.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(sum_headers))
+            title_cell = ws_sum.cell(row=1, column=1, value=report_title)
+            title_cell.font = Font(bold=True, size=14)
+            title_cell.alignment = Alignment(horizontal="left", vertical="center")
+            header_row_idx = 2
+        except Exception:
+            header_row_idx = 1
 
-            row = 2
-            for info in user_summaries:
-                try:
-                    ws_sum.cell(row=row, column=1, value=info["id"])
-                    ws_sum.cell(row=row, column=2, value=info["username"])
-                    ws_sum.cell(row=row, column=3, value=info["full_name"])
-                    ws_sum.cell(row=row, column=4, value=info["employment"])
-                    ws_sum.cell(row=row, column=5, value=info["total_jobs_assigned"])
-                    ws_sum.cell(row=row, column=6, value=info["total_jobs_completed"])
-                    ws_sum.cell(row=row, column=7, value=round(info["total_hours"], 2))
-                    ws_sum.cell(row=row, column=8, value=round(info["average_jobs_per_hour"], 2))
-                    ws_sum.cell(row=row, column=9, value=round(info["productivity_ratio"], 2))
-                except Exception as e:
-                    print(f"Error writing summary row for user {getattr(info['user'],'id','?')}: {e}")
-                row += 1
+        # Headers
+        for i, h in enumerate(sum_headers, 1):
+            c = ws_sum.cell(row=header_row_idx, column=i, value=h)
+            c.font = header_font
+            c.fill = header_fill
+            c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            c.border = border
 
-            # autosize summary columns best-effort
+        # Data rows
+        r = header_row_idx + 1
+        for info in user_summaries:
             try:
-                for i, _ in enumerate(sum_headers, 1):
-                    col_letter = get_column_letter(i)
-                    ws_sum.column_dimensions[col_letter].auto_size = True
-            except Exception:
-                pass
+                ws_sum.cell(r, 1, info["id"])
+                ws_sum.cell(r, 2, info["username"])
+                ws_sum.cell(r, 3, info["full_name"])
+                ws_sum.cell(r, 4, info["employment"])
+                ws_sum.cell(r, 5, info["total_jobs_assigned"])
+                ws_sum.cell(r, 6, info["total_jobs_completed"])
+                h_cell = ws_sum.cell(r, 7, round(info["total_hours"], 2))
+                h_cell.number_format = "0.00"
+                h_cell.alignment = right_align
 
-            # Then one sheet per user
-            for info in user_summaries:
-                user = info["user"]
-                sheet_name = safe_sheet_name(info["username"], f"user_{user.id}")
-                if sheet_name in wb.sheetnames:
-                    sheet_name = f"{sheet_name}_{user.id}"
-                ws = wb.create_sheet(title=sheet_name)
+                avg_cell = ws_sum.cell(r, 8, round(info["average_jobs_per_hour"], 2))
+                avg_cell.number_format = "0.00"
+                avg_cell.alignment = right_align
 
-                # Header row
-                for col_idx, h in enumerate(headers, 1):
-                    ws.cell(row=1, column=col_idx, value=h).font = Font(bold=True)
+                prod_cell = ws_sum.cell(r, 9, round(info["productivity_ratio"], 2))
+                prod_cell.number_format = "0.00"
+                prod_cell.alignment = right_align
 
-                # Materialize jobs to avoid N+1
-                try:
-                    jobs_qs = info["jobs_qs"].select_related('provision__batch', 'enactment_assignment__enactment').prefetch_related('sessions')
-                except Exception:
-                    jobs_qs = info["jobs_qs"]
+                # Row styling: borders + zebra
+                for col in range(1, len(sum_headers) + 1):
+                    c = ws_sum.cell(r, col)
+                    c.border = border
+                    if (r - header_row_idx) % 2 == 1:
+                        c.fill = odd_fill
 
-                r = 2
-                total_minutes = 0.0
-                for job in jobs_qs:
+                r += 1
+            except Exception as e:
+                print(f"Error writing summary row for user {info.get('id')}: {e}")
+                r += 1
+
+        last_summary_row = r - 1
+
+        # Add auto-filter, freeze, widths
+        try:
+            top = header_row_idx
+            bottom = last_summary_row
+            ws_sum.auto_filter.ref = f"A{top}:I{bottom}"
+            ws_sum.freeze_panes = ws_sum[f"A{top + 1}"]
+
+            # Column widths heuristic
+            for col_idx in range(1, len(sum_headers) + 1):
+                col_letter = get_column_letter(col_idx)
+                max_len = 0
+                for rr in range(top, bottom + 1):
                     try:
-                        batch_name = getattr(getattr(job, 'provision', None), 'batch', None)
-                        batch_name = batch_name.name if batch_name else ""
-                        provision_title = getattr(job.provision, 'title', '') if getattr(job, 'provision', None) else ""
-                        citation = ""
-                        if getattr(job, 'enactment_assignment', None) and getattr(job.enactment_assignment, 'enactment', None):
-                            citation = job.enactment_assignment.enactment.title or ""
+                        val = ws_sum.cell(rr, col_idx).value
+                        if val is None:
+                            continue
+                        length = len(str(val))
+                        if length > max_len:
+                            max_len = length
+                    except Exception:
+                        pass
+                adjusted = min(max(max_len + 2, 10), 60)
+                try:
+                    ws_sum.column_dimensions[col_letter].width = adjusted
+                except Exception:
+                    pass
+        except Exception as e:
+            print("Summary view/filters error:", e)
 
-                        # XLSX: write proper datetime cells using openpyxl_to_excel
-                        def make_naive_for_excel(dt):
-                            """
-                            Convert a datetime (aware or naive) into a naive datetime in the
-                            project's default timezone, safe for openpyxl_to_excel().
-                            """
-                            try:
-                                if dt is None:
-                                    return None
-                                # If dt is timezone-aware, convert to default timezone then make naive.
-                                if dj_timezone.is_aware(dt):
-                                    tz = dj_timezone.get_default_timezone()
-                                    dt_local = dt.astimezone(tz)
-                                    return dj_timezone.make_naive(dt_local, tz)
-                                else:
-                                    # naive datetime — assume it's already in local timezone (best-effort)
-                                    return dt
-                            except Exception as e:
-                                print(f"Error normalizing datetime for excel: {e}")
-                                return None
+    except Exception as e:
+        print("Summary sheet creation failed:", e)
 
-                        # Start Date
-                        if job.start_date:
-                            try:
-                                naive_start = make_naive_for_excel(job.start_date)
-                                if naive_start:
-                                    excel_dt = openpyxl_to_excel(naive_start)
-                                    cell = ws.cell(row=r, column=4, value=excel_dt)
-                                    cell.number_format = "MMM. D, YYYY, h:mm AM/PM"
-                                else:
-                                    ws.cell(row=r, column=4, value="")
-                            except Exception as e:
-                                print(f"Error converting start_date for job {getattr(job,'id','?')}: {e}")
-                                try:
-                                    # fallback: convert to local tz string
-                                    local = job.start_date.astimezone(dj_timezone.get_default_timezone()) if dj_timezone.is_aware(job.start_date) else job.start_date
-                                    ws.cell(row=r, column=4, value=local.strftime("%b. %d, %Y, %I:%M %p"))
-                                except Exception:
-                                    ws.cell(row=r, column=4, value="")
+    # --- Per-user detailed sheets ---
+    for info in user_summaries:
+        try:
+            user = info["user"]
+            safe_name = safe_sheet_name(info["full_name"], f"user_{user.id}")
+            if safe_name in wb.sheetnames:
+                safe_name = (safe_name[:28] + f"_{user.id}")[:31]
 
-                        else:
-                            ws.cell(row=r, column=4, value="")
+            ws = wb.create_sheet(safe_name)
 
-                        # End Date
-                        if job.end_date:
-                            try:
-                                naive_end = make_naive_for_excel(job.end_date)
-                                if naive_end:
-                                    excel_dt = openpyxl_to_excel(naive_end)
-                                    cell = ws.cell(row=r, column=5, value=excel_dt)
-                                    cell.number_format = "MMM. D, YYYY, h:mm AM/PM"
-                                else:
-                                    ws.cell(row=r, column=5, value="")
-                            except Exception as e:
-                                print(f"Error converting end_date for job {getattr(job,'id','?')}: {e}")
-                                try:
-                                    local = job.end_date.astimezone(dj_timezone.get_default_timezone()) if dj_timezone.is_aware(job.end_date) else job.end_date
-                                    ws.cell(row=r, column=5, value=local.strftime("%b. %d, %Y, %I:%M %p"))
-                                except Exception:
-                                    ws.cell(row=r, column=5, value="")
-                        else:
-                            ws.cell(row=r, column=5, value="")
+            # Title row (optional)
+            try:
+                ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+                title_cell = ws.cell(row=1, column=1, value=f"{info['full_name']} — generated {_dt.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                title_cell.font = Font(bold=True, size=12)
+                title_cell.alignment = Alignment(horizontal="left", vertical="center")
+                header_row_idx = 2
+            except Exception:
+                header_row_idx = 1
 
-                        # duration
+            # Headers
+            for i, h in enumerate(headers, 1):
+                ch = ws.cell(row=header_row_idx, column=i, value=h)
+                ch.font = header_font
+                ch.fill = header_fill
+                ch.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                ch.border = border
+
+            # Data rows
+            r = header_row_idx + 1
+            total_minutes = 0.0
+
+            jobs_qs = info["jobs_qs"].select_related(
+                "provision__batch",
+                "enactment_assignment__enactment"
+            ).prefetch_related("sessions")
+
+            for job in jobs_qs:
+                try:
+                    batch_name = getattr(getattr(job, "provision", None), "batch", None)
+                    batch_name = batch_name.name if batch_name else ""
+                    provision_title = getattr(job.provision, "title", "") if job.provision else ""
+                    citation = ""
+                    if getattr(job, "enactment_assignment", None) and getattr(job.enactment_assignment, "enactment", None):
+                        citation = job.enactment_assignment.enactment.title or ""
+
+                    # Start / End normalized
+                    start_dt = make_naive_for_excel(job.start_date)
+                    end_dt = make_naive_for_excel(job.end_date)
+
+                    ws.cell(r, 1, info["id"])
+                    ws.cell(r, 2, info["full_name"])
+                    ws.cell(r, 3, batch_name)
+                    ws.cell(r, 4, provision_title)
+                    ws.cell(r, 5, citation)
+
+                    # Start date as Excel serial if available
+                    if start_dt:
                         try:
-                            duration_minutes = float(job.total_time_minutes or 0)
-                        except Exception:
-                            print(f"Error reading total_time_minutes for job {getattr(job,'id','?')}")
-                            duration_minutes = 0.0
+                            excel_dt = openpyxl_to_excel(start_dt)
+                            cell = ws.cell(r, 6, excel_dt)
+                            cell.number_format = "mmm d, yyyy h:mm AM/PM"
+                            cell.alignment = center_align
+                        except Exception as e:
+                            print(f"Start date conversion error (user {user.id}):", e)
+                            ws.cell(r, 6, "")
+                    else:
+                        ws.cell(r, 6, "")
 
-                        ws.cell(row=r, column=1, value=batch_name)
-                        ws.cell(row=r, column=2, value=provision_title)
-                        ws.cell(row=r, column=3, value=citation)
-                        # start_date written above (col 4), end_date above (col 5)
-                        ws.cell(row=r, column=6, value=round(duration_minutes, 2))
-                        ws.cell(row=r, column=7, value=job.status or "")
+                    # End date
+                    if end_dt:
+                        try:
+                            excel_dt = openpyxl_to_excel(end_dt)
+                            cell = ws.cell(r, 7, excel_dt)
+                            cell.number_format = "mmm d, yyyy h:mm AM/PM"
+                            cell.alignment = center_align
+                        except Exception as e:
+                            print(f"End date conversion error (user {user.id}):", e)
+                            ws.cell(r, 7, "")
+                    else:
+                        ws.cell(r, 7, "")
 
-                        total_minutes += duration_minutes
-                        r += 1
-                    except Exception as e:
-                        print(f"Error writing job row for user {getattr(user,'id','?')}: {e}")
+                    # Duration
+                    try:
+                        minutes = float(job.total_time_minutes or 0)
+                    except Exception:
+                        minutes = 0.0
+                    total_minutes += minutes
+                    dur_cell = ws.cell(r, 8, round(minutes, 2))
+                    dur_cell.number_format = "0.00"
+                    dur_cell.alignment = right_align
 
-                # Footer totals
-                try:
-                    ws.cell(row=r + 1, column=5, value="Total (minutes):").font = Font(bold=True)
-                    ws.cell(row=r + 1, column=6, value=round(total_minutes, 2)).font = Font(bold=True)
+                    ws.cell(r, 9, job.status or "")
+
+                    # Row styling: borders + zebra
+                    for col in range(1, len(headers) + 1):
+                        c = ws.cell(r, col)
+                        c.border = border
+                        if (r - header_row_idx) % 2 == 1:
+                            c.fill = odd_fill
+
+                    r += 1
                 except Exception as e:
-                    print(f"Error writing footer for user {getattr(user,'id','?')}: {e}")
+                    print(f"Error writing job row for user {getattr(user, 'id', 'unknown')}: {e}")
+                    r += 1
 
-                # autosize columns best-effort
+            last_data_row = r - 1
+
+            # Footer with Excel SUM formula
+            try:
+                footer_row = last_data_row + 2
+                label_cell = ws.cell(footer_row, 7, "Total (minutes):")
+                label_cell.font = Font(bold=True)
+                label_cell.alignment = right_align
+                label_cell.border = border
+
+                if last_data_row >= (header_row_idx + 1):
+                    sum_formula = f"=SUM(H{header_row_idx + 1}:H{last_data_row})"
+                else:
+                    sum_formula = "=0"
+                total_cell = ws.cell(footer_row, 8, sum_formula)
+                total_cell.font = Font(bold=True)
+                total_cell.number_format = "0.00"
+                total_cell.alignment = right_align
+                total_cell.border = border
+            except Exception as e:
+                print(f"Footer totals error for user {getattr(user, 'id', 'unknown')}: {e}")
+                # As fallback, write computed total
                 try:
-                    for i, _ in enumerate(headers, 1):
-                        col_letter = get_column_letter(i)
-                        ws.column_dimensions[col_letter].auto_size = True
+                    ws.cell(r + 1, 7, "Total (minutes):").font = Font(bold=True)
+                    ws.cell(r + 1, 8, round(total_minutes, 2)).font = Font(bold=True)
                 except Exception:
                     pass
 
-            # Save workbook to response
+            # View tweaks: autofilter, freeze, widths
             try:
-                response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                filename = f"productivity_all_{_dt.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-                response["Content-Disposition"] = f'attachment; filename="{filename}"'
-                wb.save(response)
-                return response
+                top = header_row_idx
+                bottom = last_data_row
+                if bottom < top:
+                    bottom = top  # ensure valid range for small/no-data sheets
+                ws.auto_filter.ref = f"A{top}:I{bottom}"
+                ws.freeze_panes = ws[f"A{top + 1}"]
+
+                # Column widths heuristic
+                min_w, max_w = 10, 60
+                for col_idx in range(1, len(headers) + 1):
+                    col_letter = get_column_letter(col_idx)
+                    max_len = 0
+                    for rr in range(top, bottom + 1):
+                        try:
+                            val = ws.cell(rr, col_idx).value
+                            if val is None:
+                                continue
+                            # If date serial (float) in date columns, use representative length
+                            if isinstance(val, (float, int)) and col_idx in (6, 7):
+                                length = len("YYYY-MM-DD HH:MM")
+                            else:
+                                length = len(str(val))
+                            if length > max_len:
+                                max_len = length
+                        except Exception:
+                            pass
+                    adjusted = min(max(max_len + 2, min_w), max_w)
+                    try:
+                        ws.column_dimensions[col_letter].width = adjusted
+                    except Exception:
+                        pass
             except Exception as e:
-                print("Error saving workbook to response:", e)
-                # fall back to CSV
+                print(f"View/widths/filters error for user {getattr(user, 'id', 'unknown')}: {e}")
+
         except Exception as e:
-            print("Error building xlsx export:", e)
-            # fall back to CSV
+            print(f"Failed to create sheet for user {info.get('id')}: {e}")
 
-    # ---------- CSV fallback ----------
+    # --- Finalize response ---
     try:
-        import csv
-        from io import StringIO
-        output = StringIO()
-        writer = csv.writer(output)
-
-        # CSV date formatting helper (Windows-friendly)
-        def fmt_dt_for_csv(dt):
-            try:
-                return dt.strftime("%b. %d, %Y, %I:%M %p")
-            except Exception:
-                return ""
-
-        # Summary section (index columns)
-        writer.writerow(["Summary"])
-        writer.writerow(["ID", "Username", "Full Name", "Employment", "Total Jobs Assigned",
-                         "Total Jobs Completed", "Total Hours", "Average Jobs Per Hour", "Productivity (%)"])
-        for info in user_summaries:
-            writer.writerow([
-                info["id"],
-                info["username"],
-                info["full_name"],
-                info["employment"],
-                info["total_jobs_assigned"],
-                info["total_jobs_completed"],
-                round(info["total_hours"], 2),
-                round(info["average_jobs_per_hour"], 2),
-                round(info["productivity_ratio"], 2),
-            ])
-        writer.writerow([])
-
-        # Per-user blocks (job details)
-        for info in user_summaries:
-            user = info["user"]
-            writer.writerow([f"User: {info['username']} (id={user.id})"])
-            writer.writerow(headers)
-
-            try:
-                jobs_qs = info["jobs_qs"].select_related('provision__batch', 'enactment_assignment__enactment').prefetch_related('sessions')
-            except Exception:
-                jobs_qs = info["jobs_qs"]
-
-            total_minutes = 0.0
-            for job in jobs_qs:
-                batch_name = getattr(getattr(job, 'provision', None), 'batch', None)
-                batch_name = batch_name.name if batch_name else ""
-                provision_title = getattr(job.provision, 'title', '') if getattr(job, 'provision', None) else ""
-                citation = ""
-                if getattr(job, 'enactment_assignment', None) and getattr(job.enactment_assignment, 'enactment', None):
-                    citation = job.enactment_assignment.enactment.title or ""
-                start_date = fmt_dt_for_csv(job.start_date) if job.start_date else ""
-                end_date = fmt_dt_for_csv(job.end_date) if job.end_date else ""
-                try:
-                    duration_minutes = float(job.total_time_minutes or 0)
-                except Exception:
-                    duration_minutes = 0.0
-                writer.writerow([batch_name, provision_title, citation, start_date, end_date, round(duration_minutes, 2), job.status or ""])
-                total_minutes += duration_minutes
-
-            writer.writerow([])
-            writer.writerow(["", "", "", "", "Total (minutes):", round(total_minutes, 2)])
-            writer.writerow([])
-
-        csv_data = output.getvalue()
-        output.close()
-        response = HttpResponse(csv_data, content_type='text/csv')
-        filename = f"productivity_all_{_dt.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        safe_filename = "".join(c for c in ("productivity_all_" + _dt.now().strftime("%Y%m%d_%H%M%S")) if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        filename = f"{safe_filename}.xlsx"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        wb.save(response)
         return response
-
     except Exception as e:
-        print("Error generating CSV fallback:", e)
-        return HttpResponse("Export failed", status=500)
+        print("Error saving workbook:", e)
+        return HttpResponse("Failed to generate Excel", status=500)
     
     
 #################

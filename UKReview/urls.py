@@ -45,7 +45,7 @@ urlpatterns = [
     # Productivity
     path('productivity/', productivity_views.index, name='productivity_index'),
     path('productivity/<int:user_id>/', productivity_views.detail, name='productivity_detail'),
-    path('productivity/export/', productivity_views.export_to_excel, name='export_to_excel'),
+    # path('productivity/export/', productivity_views.export_to_excel, name='export_to_excel'),
     path('productivity/export_all/', productivity_views.export_all_productivity, name='export-all-productivity'),
 
     # Reports
