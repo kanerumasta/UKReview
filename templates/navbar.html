@@ -3,11 +3,11 @@
         
     </ul>
     <div class="h-full">
-    	{% if user.is_authenticated %}
+    	{% if request.user.is_authenticated %}
 		<div class="flex items-center space-x-4 h-full">
 			<!-- User badge -->
 			<span class="px-3 py-1 bg-gray-600 text-gray-100 rounded-full text-sm font-medium flex items-center">
-			{{ user.first_name }}
+			{{ request.user.first_name }}
 			</span>
 
 			<!-- Logout button -->
