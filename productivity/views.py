@@ -262,7 +262,9 @@ def get_user_productivity(batch_id=None):
         for u in users_list:
             try:
                 secs = float(python_seconds_map.get(u.pk, 0.0) or 0.0)
-                hrs = secs / 3600.0 if secs > 0 else 0.0
+                total_minutes = secs / 60.0 if secs > 0 else 0.0
+                print("TOTAL MINUTES FOR USER:", u.pk, total_minutes)
+                hrs = total_minutes / 60.0 if total_minutes > 0 else 0.0
                 # Guard division by zero
                 avg = (u.total_jobs_completed / hrs) if (hrs and u.total_jobs_completed) else 0.0
                 prod = (avg / quota_val * 100.0) if quota_val else 0.0
@@ -325,6 +327,10 @@ def get_user_productivity(batch_id=None):
 
     # Return the materialized list (the index view will sort it according to UI params)
     return final_users
+
+
+
+
 def index(request):
     if request.user.role == 'user':
         return redirect("jobs")
@@ -1000,6 +1006,7 @@ def detail(request, user_id):
     except Exception as e:
         print(f"Error building page window for user {user_id}: {e}")
         page_window = [1]
+    print(f"TOTAL JOBS COUNT:, {total_jobs_count}, TOTAL DURATION: {total_duration}")
     average_jobs_per_hour = total_jobs_count / (total_duration / 60) if total_duration > 0 else 0
     context = {
         "user": user,
@@ -1217,6 +1224,8 @@ def export_all_productivity(request):
                     for job in jobs_base.filter(status="completed").prefetch_related("sessions"):
                         try:
                             total_minutes += float(job.total_time_minutes or 0)
+                            print("TOTAL MINUTES FLOAT:", total_minutes)
+                            print("TOTAL MINUTES RAW:", job.id, job.total_time_minutes)
                         except Exception:
                             pass
                 except Exception:
@@ -1308,15 +1317,15 @@ def export_all_productivity(request):
                 ws_sum.cell(r, 4, info["employment"])
                 ws_sum.cell(r, 5, info["total_jobs_assigned"])
                 ws_sum.cell(r, 6, info["total_jobs_completed"])
-                h_cell = ws_sum.cell(r, 7, round(info["total_hours"], 2))
+                h_cell = ws_sum.cell(r, 7, info["total_hours"])
                 h_cell.number_format = "0.00"
                 h_cell.alignment = right_align
 
-                avg_cell = ws_sum.cell(r, 8, round(info["average_jobs_per_hour"], 2))
+                avg_cell = ws_sum.cell(r, 8, info["average_jobs_per_hour"])
                 avg_cell.number_format = "0.00"
                 avg_cell.alignment = right_align
 
-                prod_cell = ws_sum.cell(r, 9, round(info["productivity_ratio"], 2))
+                prod_cell = ws_sum.cell(r, 9, info["productivity_ratio"])
                 prod_cell.number_format = "0.00"
                 prod_cell.alignment = right_align
 
@@ -1454,7 +1463,7 @@ def export_all_productivity(request):
                     except Exception:
                         minutes = 0.0
                     total_minutes += minutes
-                    dur_cell = ws.cell(r, 8, round(minutes, 2))
+                    dur_cell = ws.cell(r, 8, minutes)
                     dur_cell.number_format = "0.00"
                     dur_cell.alignment = right_align
 
