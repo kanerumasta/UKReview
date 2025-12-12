@@ -431,7 +431,7 @@ def index(request):
     try:
         from enactments.models import Batch
         batches = Batch.objects.all()
-    except Exception as e:
+    except Exception as e: 
         print("Could not load Batch list:", e)
         batches = []
 
@@ -763,13 +763,16 @@ def detail(request, user_id):
             try:
                 footer_row = last_data_row + 2
                 # Put a label and a SUM formula for the duration column (column F)
-                label_cell = ws.cell(row=footer_row, column=5, value="Total (minutes):")
+                label_cell = ws.cell(row=footer_row, column=5, value="Average Jobs Per Hour:")
                 label_cell.font = Font(bold=True)
                 label_cell.alignment = right_align
                 label_cell.border = border
 
                 # Use Excel formula to sum the duration column so totals update if user edits
-                sum_formula = f"=SUM(F{header_row_idx + 1}:F{last_data_row})" if last_data_row >= (header_row_idx + 1) else "=0"
+                # sum_formula = f"=SUM(F{header_row_idx + 1}:F{last_data_row})" if last_data_row >= (header_row_idx + 1) else "=0"
+                average_jobs_per_hour = total_jobs_count / (total_duration / 60) if total_duration > 0 else 0
+
+                sum_formula = average_jobs_per_hour
                 total_cell = ws.cell(row=footer_row, column=6, value=sum_formula)
                 total_cell.font = Font(bold=True)
                 total_cell.number_format = '0.00'
@@ -1123,7 +1126,7 @@ def export_all_productivity(request):
 
     # --- Build users queryset with safe ordering ---
     try:
-        users_qs = User.objects.all()
+        users_qs = User.objects.exclude(is_superuser=True).exclude(role="manager")
         allowed_user_sort = {
             "username": "username",
             "last_name": "last_name",
@@ -1472,30 +1475,69 @@ def export_all_productivity(request):
             last_data_row = r - 1
 
             # Footer with Excel SUM formula
+            # --- Footer with corrected Average Jobs Per Hour formula ---
             try:
                 footer_row = last_data_row + 2
-                label_cell = ws.cell(footer_row, 7, "Total (minutes):")
-                label_cell.font = Font(bold=True)
-                label_cell.alignment = right_align
-                label_cell.border = border
+                data_start_row = header_row_idx + 1
+                data_end_row = last_data_row
 
-                if last_data_row >= (header_row_idx + 1):
-                    sum_formula = f"=SUM(H{header_row_idx + 1}:H{last_data_row})"
+                if data_end_row < data_start_row:
+                    # No data → zero out
+                    ws.cell(footer_row, 7, "Average Jobs Per Hour:").font = Font(bold=True)
+                    ws.cell(footer_row, 8, 0).font = Font(bold=True)
                 else:
-                    sum_formula = "=0"
-                total_cell = ws.cell(footer_row, 8, sum_formula)
-                total_cell.font = Font(bold=True)
-                total_cell.number_format = "0.00"
-                total_cell.alignment = right_align
-                total_cell.border = border
+                    dur_range = f"H{data_start_row}:H{data_end_row}"
+                    status_range = f"I{data_start_row}:I{data_end_row}"
+
+                    # Expressions WITHOUT "=" for embedding
+                    total_minutes_expr = f"SUM({dur_range})"
+                    completed_jobs_expr = f'COUNTIF({status_range}, "completed")'
+
+                    # Your exact formula:  completed_jobs / (total_minutes / 60)
+                    avg_expr = (
+                        f"IF({total_minutes_expr}=0, 0, "
+                        f"{completed_jobs_expr} / ({total_minutes_expr}/60))"
+                    )
+
+                    # Label
+                    label = ws.cell(footer_row, 7, "Average Jobs Per Hour:")
+                    label.font = Font(bold=True)
+                    label.alignment = right_align
+                    label.border = border
+
+                    # Calculation
+                    avg_cell = ws.cell(footer_row, 8, f"={avg_expr}")
+                    avg_cell.font = Font(bold=True)
+                    avg_cell.number_format = "0.00"
+                    avg_cell.alignment = right_align
+                    avg_cell.border = border
+
+                    # Total Minutes display
+                    tmin_label = ws.cell(footer_row + 1, 7, "Total (minutes):")
+                    tmin_label.font = Font(bold=True)
+                    tmin_label.alignment = right_align
+                    tmin_label.border = border
+
+                    tmin_cell = ws.cell(footer_row + 1, 8, f"={total_minutes_expr}")
+                    tmin_cell.font = Font(bold=True)
+                    tmin_cell.number_format = "0.00"
+                    tmin_cell.alignment = right_align
+                    tmin_cell.border = border
+
+                    # Completed Jobs display
+                    tjobs_label = ws.cell(footer_row + 2, 7, "Total Completed Jobs:")
+                    tjobs_label.font = Font(bold=True)
+                    tjobs_label.alignment = right_align
+                    tjobs_label.border = border
+
+                    tjobs_cell = ws.cell(footer_row + 2, 8, f"={completed_jobs_expr}")
+                    tjobs_cell.font = Font(bold=True)
+                    tjobs_cell.number_format = "0"
+                    tjobs_cell.alignment = right_align
+                    tjobs_cell.border = border
+
             except Exception as e:
-                print(f"Footer totals error for user {getattr(user, 'id', 'unknown')}: {e}")
-                # As fallback, write computed total
-                try:
-                    ws.cell(r + 1, 7, "Total (minutes):").font = Font(bold=True)
-                    ws.cell(r + 1, 8, round(total_minutes, 2)).font = Font(bold=True)
-                except Exception:
-                    pass
+                print("Footer error:", e)
 
             # View tweaks: autofilter, freeze, widths
             try:
