@@ -1,0 +1,412 @@
+{% extends "base.html"%}
+
+{% block content %}
+
+{% if messages %}
+<script>
+    {% for message in messages %}
+        Swal.fire({
+            title: "{{ message.tags|title|escapejs }}",
+            text: "{{ message|escapejs }}",
+            icon: "{% if 'error' in message.tags %}error{% elif 'success' in message.tags %}success{% else %}info{% endif %}",
+        });
+    {% endfor %}
+</script>
+{% endif %}
+
+<div x-data="{
+    showMissingModal: false,
+    answers: {},
+    storageKey: 'qa_answers_{{ qa_job.id }}',
+    errorDefects: {{ request.session.qa_validation_errors|default:'[]'|safe }},
+    
+    init() {
+        // Load answers from localStorage on page load
+        this.loadFromStorage();
+        
+        // Watch for changes in answers and save to localStorage
+        this.$watch('answers', () => {
+            this.saveToStorage();
+        }, { deep: true });
+        
+        // Clear session errors after they're displayed
+        this.clearSessionErrors();
+    },
+    
+    loadFromStorage() {
+        try {
+            const stored = localStorage.getItem(this.storageKey);
+            if (stored) {
+                this.answers = JSON.parse(stored);
+                
+                // Restore radio button selections
+                this.$nextTick(() => {
+                    for (const [defectId, data] of Object.entries(this.answers)) {
+                        const radioYes = document.querySelector(`input[name='correct_${defectId}'][value='yes']`);
+                        const radioNo = document.querySelector(`input[name='correct_${defectId}'][value='no']`);
+                        const remarksInput = document.querySelector(`input[name='remarks_${defectId}']`);
+                        
+                        if (data.answer === 'yes' && radioYes) {
+                            radioYes.checked = true;
+                        } else if (data.answer === 'no' && radioNo) {
+                            radioNo.checked = true;
+                        }
+                        
+                        if (remarksInput && data.remarks) {
+                            remarksInput.value = data.remarks;
+                        }
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Error loading from localStorage:', e);
+        }
+    },
+    
+    saveToStorage() {
+        try {
+            localStorage.setItem(this.storageKey, JSON.stringify(this.answers));
+        } catch (e) {
+            console.error('Error saving to localStorage:', e);
+        }
+    },
+    
+    clearStorage() {
+        localStorage.removeItem(this.storageKey);
+        this.answers = {};
+    },
+    
+    clearSessionErrors() {
+        // Clear session errors after they're displayed
+        if (this.errorDefects.length > 0) {
+            fetch('{% url "clear-qa-errors" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ clear: true })
+            }).catch(console.error);
+        }
+    },
+    
+    hasError(defectId) {
+        return this.errorDefects.includes(defectId);
+    }
+}" class="relative min-h-[calc(100vh-80px)] border border-transparent">
+
+    <!-- Header -->
+    <div class="flex justify-between my-4 px-6">
+        <div class="flex flex-col gap-2">
+            <div><strong class="pr-2">Filename:</strong><span>{{qa_job.job.filename}}</span></div>
+            <div><strong class="pr-2">Enactment Citation:</strong><span>{{qa_job.job.provision.enactment.title}}</span></div>
+            <div><strong class="pr-2">Provision:</strong><span>{{qa_job.job.provision.title}}</span></div>
+            <div><strong class="pr-2">Version Date:</strong><span>{{qa_job.job.date}}</span></div>
+            <div><strong class="pr-2">Review Outcome:</strong>
+                <span>
+                    {% if qa_job.job.defect_logs.exists %}
+                        {{qa_job.job.defect_logs.count}} Defect Found
+                    {% else %}
+                        No Defect Found
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex gap-3 max-h-[50px]">
+            <!-- Clear Storage Button -->
+            <button @click="clearStorage()"
+                    type="button"
+                    class="h-full flex items-center justify-center 
+                           bg-gray-500 text-white px-3 py-2 rounded-lg shadow-md cursor-pointer
+                           transition-colors duration-300 hover:bg-gray-600 hover:scale-102">
+                <span><i class="bi bi-trash text-xl"></i></span>
+                <span>Clear Saved Answers</span>
+            </button>
+
+            <form method="POST" action="{% url 'qa-pause' qa_job.id %}">
+                {%csrf_token%}
+                <button 
+                    type="submit" 
+                    class="h-full flex items-center justify-center 
+                           bg-yellow-500 px-3 py-2 rounded-lg shadow-md cursor-pointer
+                           transition-colors duration-300 hover:bg-yellow-600 hover:scale-102">
+                    <span><i class="bi bi-pause text-xl"></i></span>
+                    <span>Pause</span>
+                </button>
+            </form>
+
+            <!-- SUBMIT ALL QA ANSWERS -->
+            <button form="qaForm"
+                    class="bg-blue-600 shadow-md text-white px-4 py-2 rounded cursor-pointer hover:scale-102">
+                Submit QA Results
+            </button>
+        </div>
+    </div>
+
+
+    <!-- QA TABLE FORM -->
+    <div class="overflow-x-auto">
+        <form id="qaForm" method="POST" action="{% url 'qa-submit' qa_job.id %}"
+              class="p-6 overflow-x-auto"
+             >
+            {% csrf_token %}
+
+            <table class="min-w-full divide-y divide-gray-200 rounded-lg">
+                <thead class="bg-gray-700 text-white text-xs uppercase text-left">
+                    <th class="px-6 py-3 whitespace-nowrap">defect id</th>
+                    <th class="px-6 py-3 whitespace-nowrap">category</th>
+                    <th class="px-6 py-3 whitespace-nowrap min-w-[250px]">check type</th>
+                    <th class="px-6 py-3 whitespace-nowrap">Issue Description</th>
+                    <th class="px-6 py-3 max-w-[80px]">severity</th>
+                    <th class="px-6 py-3 max-w-[100px]">error count</th>
+                    <th class="px-6 py-3 whitespace-nowrap">Expected outcome</th>
+                    <th class="px-6 py-3 whitespace-nowrap">actual outcome</th>
+                    <th class="px-6 py-3">correct?</th>
+                    <th class="px-6 py-3 min-w-[280px]">Remarks</th>
+                </thead>
+
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for defect in qa_job.job.defect_logs.all %}
+                    <tr x-data="{ defectId:'{{ defect.id }}' }"
+                        :class="hasError(defectId) ? 'bg-red-50 border-l-4 border-red-500' : 'hover:bg-gray-100'"
+                        class="transition-all duration-200">
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                {{ defect.id }}
+                                <template x-if="hasError(defectId)">
+                                    <span class="text-red-500" title="This defect has validation errors">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                    </span>
+                                </template>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">{{ defect.category }}</td>
+                        <td class="px-6 py-4">{{ defect.check_type }}</td>
+                        <td class="px-6 py-4">{{ defect.issue_description }}</td>
+                        <td class="px-6 py-4 max-w-xs">{{ defect.severity_level }}</td>
+                        <td class="px-6 py-4 ">{{ defect.error_count }}</td>
+                        <td class="px-6 py-4">{{ defect.expected_outcome }}</td>
+                        <td class="px-6 py-4">{{ defect.actual_outcome }}</td>
+
+                        <!-- YES/NO -->
+                        <td class="px-6 py-4">
+                            <div class="flex gap-3">
+                                <label class="flex items-center gap-1">
+                                    <input type="radio"
+                                           :name="'correct_'+defectId"
+                                           value="yes"
+                                           @change="
+                                               if (!answers[defectId]) answers[defectId] = {answer:'',remarks:''};
+                                               answers[defectId].answer='yes';
+                                           "
+                                           x-model="answers[defectId]?.answer">
+                                    Yes
+                                </label>
+
+                                <label class="flex items-center gap-1">
+                                    <input type="radio"
+                                           :name="'correct_'+defectId"
+                                           value="no"
+                                           @change="
+                                               if (!answers[defectId]) answers[defectId] = {answer:'',remarks:''};
+                                               answers[defectId].answer='no';
+                                           "
+                                           x-model="answers[defectId]?.answer">
+                                    No
+                                </label>
+                            </div>
+                        </td>
+
+                        <!-- REMARKS -->
+                        <td class="px-6 py-4">
+                            <input type="text"
+                                   class="border border-blue-300 rounded px-2 py-1 w-full"
+                                   :class="hasError(defectId) ? 'border-red-300 bg-red-50' : ''"
+                                   :name="'remarks_'+defectId"
+                                   @input="
+                                       if (!answers[defectId]) answers[defectId] = {answer:'',remarks:''};
+                                       answers[defectId].remarks=$event.target.value;
+                                   "
+                                   x-model="answers[defectId]?.remarks"
+                                   placeholder="Enter remarks for incorrect defects">
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr class="bg-gray-100">
+                        <td colspan="10" class="px-6 py-10 whitespace-nowrap text-center text-gray-500">Empty defects log.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- hidden field -->
+            <input type="hidden" name="answers_json" :value="JSON.stringify(answers)">
+        </form>
+    </div>
+        
+    <div class="p-6 mt-4">
+        <div class="flex justify-between">
+            {% if missing_defects.count > 0 %} <p class="text-xl font-semibold text-red-400">Missing Defects</p>{%endif%}
+            <button @click="showMissingModal=true"
+                    class="bg-red-400 flex items-center hover:bg-red-300 transition-all duration-150 cursor-pointer font-semibold shadow-md text-black px-4 py-2 rounded">
+                <span class=""><i class="bi bi-plus text-xl "></i></span>
+                <span>Add a Missing Defect</span> 
+            </button>
+        </div>
+        
+        {% if missing_defects.count > 0 %}
+        <table>
+            <thead class="text-left font-semibold text-gray-700">
+                <th class="px-4 py-3">Category</th>
+                <th class="px-4 py-3">Check Type</th>
+                <th class="px-4 py-3">QA Remarks</th>
+            </thead>
+            <tbody>
+                {% for defect in missing_defects %}
+                    <tr>
+                        <td class="px-4 py-2 flex items-center"><span><i class="bi bi-dot text-4xl text-gray-500"></i></span><span>{{defect.category}}</span></td>
+                        <td class="px-4 py-2">{{defect.check_type}}</td>
+                        <td class="px-4 py-2 text-gray-600">{{defect.remarks}}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+    <!-- ========================= -->
+    <!-- 📌 MODAL: ADD MISSING DEFECT -->
+    <!-- ========================= -->
+    <div x-show="showMissingModal"
+         x-transition.opacity
+         class="fixed inset-0 bg-black/40 flex justify-center items-center pb-10 z-50 backdrop-blur-xs">
+
+        <div @click.away="showMissingModal=false"
+             x-transition
+             class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-6 border border-gray-200">
+
+            <!-- MODAL HEADER -->
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800">Add Missing Defect</h2>
+                <button @click="showMissingModal=false"
+                        class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+
+            <form method="POST" action="{% url 'qa-add-missing' qa_job.id %}" 
+                  x-data="{ selected: '', selectedId: '', remarks: '', open: false }"
+                  @submit.prevent="
+                      if (!selectedId) {
+                          alert('Please select a defect');
+                          return false;
+                      }
+                      if (!remarks.trim()) {
+                          alert('Please fill remarks');
+                          return false;
+                      }
+                      $event.target.submit();
+                  " 
+                  class="space-y-5">
+                {% csrf_token %}
+                
+                <!-- DROPDOWN -->
+                <div class="relative">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        Select Defect <span class="text-red-500">*</span>
+                    </label>
+
+                    <!-- Dropdown Button -->
+                    <button type="button"
+                            @click="open = !open"
+                            class="w-full text-left border border-gray-300 rounded-lg px-4 py-2.5 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition flex justify-between items-center"
+                            :class="!selectedId ? 'border-red-300' : ''">
+                        <span x-text="selected || 'Select a defect…'" 
+                              :class="!selectedId ? 'text-gray-400' : 'text-gray-700'"></span>
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div x-show="open"
+                         @click.away="open=false"
+                         x-transition
+                         class="absolute mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-y-auto z-50">
+                        
+                        {% for category in categories %}
+                            <div class="px-3 py-2 bg-gray-100 text-gray-700 font-semibold sticky top-0 border-b border-b-gray-300">{{ category.name }}</div>
+                            {% for opt in category.options.all %}
+                                <div @click="selected='{{ opt.check_type }}'; selectedId='{{ opt.id }}'; open=false"
+                                     class="px-4 py-2 hover:bg-blue-100 cursor-pointer text-gray-700 transition ">
+                                    {{ opt.check_type }}
+                                </div>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Hidden input for form submission -->
+                    <input type="hidden" name="defect_option" x-model="selectedId" required>
+                    
+                    <!-- Error message -->
+                    <div x-show="!selectedId && remarks.length > 0" class="text-red-500 text-sm mt-1">
+                        Please select a defect
+                    </div>
+                </div>
+
+                <!-- REMARKS -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        Remarks <span class="text-red-500">*</span>
+                    </label>
+                    <textarea
+                        x-model="remarks"
+                        name="remarks"
+                        rows="3"
+                        class="w-full border border-gray-300 rounded-lg px-4 py-2.5 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        placeholder="Add additional notes or details..."
+                        required></textarea>
+                </div>
+
+                <!-- BUTTONS -->
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button"
+                            @click="showMissingModal=false"
+                            class="px-4 py-2.5 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+                        Cancel
+                    </button>
+
+                    <button type="submit"
+                            class="cursor-pointer px-5 py-2.5 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition">
+                        Submit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Paused Modal -->
+    {% if qa_job.status == 'paused' %}
+    <div class="absolute top-0 left-0 h-full inset-0 bg-black/40 flex justify-center items-center pb-10 z-10 backdrop-blur-xs">
+        <div class="relative h-full w-full ">
+            <div class="absolute bg-black/60 rounded-xl p-4 flex justify-center top-0 right-0 w-[300px] m-4">
+                <p class="text-yellow-400 font-semibold">QA Job On Paused</p>
+            </div>
+            
+            <div class="h-full w-full flex items-center justify-center">
+                <form method="POST" action="{% url 'qa-resume' qa_job.id %}">
+                    {%csrf_token%}
+                    <button type="submit" class="text-white/50 hover:text-yellow-500 cursor-pointer hover:scale-110 transition-all duration-150 flex flex-col justify-center text-3xl">
+                        <i class="bi bi-play-fill text-9xl"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

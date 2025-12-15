@@ -17,7 +17,7 @@ from .models import DefectLog, DefectCategory, DefectOption
 
 @admin.register(DefectLog)
 class DefectLogAdmin(admin.ModelAdmin):
-    list_display = ['id','provision_job','category','check_type', 'severity_level', 'issue_description', 'error_count','expected_outcome','actual_outcome', 'comments', 'screenshot','link']
+    list_display = ['id','provision_job','category','check_type', 'severity_level', 'issue_description', 'error_count','expected_outcome','actual_outcome', 'comments', 'screenshot','qa_correct','qa_remarks','dispute_reason']
 
 
 

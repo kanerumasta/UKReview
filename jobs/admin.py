@@ -6,7 +6,7 @@ from .models import ProvisionJob, EnactmentAssignment, ProvisionJobSession
 class ProvisionJobAdmin(admin.ModelAdmin):
     list_display = ('id','provision', 'filename', 'date', 'status','user','total_time_display', "date_assigned","document_rating","start_date", "end_date","last_edited")
     search_fields = ('provision__title', 'filename')
-    list_filter=['status']
+    list_filter=['status','in_qa']
 
     def total_time_display(self, obj):
         # Format timedelta nicely, e.g., HH:MM:SS

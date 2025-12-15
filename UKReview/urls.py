@@ -50,10 +50,14 @@ urlpatterns = [
 
     # Reports
     path('reports/', report_views.reports_view, name='reports_index'),
+    path('reports/qa', report_views.qa_report_index, name='qa-reports-index'),
     path("reports/partial_excel_report/", report_views.partial_excel_report, name="partial_excel_report"),
     path("reports/report-batch/<int:id>/", report_views.report_generation_detail, name="report_batch_detail"),
     path("reports/full_excel_report/", report_views.full_excel_report, name="full_excel_report"),
     path("reports/<str:defect_id>/edit/", report_views.edit_defect_log, name="edit_defect_log_reports"),
+
+
+
 
 
     # Settings
@@ -66,7 +70,20 @@ urlpatterns = [
     path("settings/<int:pk>/delete/", settings_views.defect_category_delete, name="defect_category_delete"),
     
     #QA
-    path("qa/", qa_views.index, name="qa-loading"),
+    path("qa/", qa_views.index, name="qa-index"),
+    path("qa/qa-loading/", qa_views.qa_loading, name="qa-loading"),
+    path("qa/qqa-report/", qa_views.qqa_report, name="qqa-report"),
+    path("qa/load-to-qa/<int:batch_id>/", qa_views.load_to_qa, name="load-to-qa"),
+    path("qa/<int:cluster_id>/", qa_views.provision_jobs_page, name="qa-detail"),
+    path("qa/<int:qa_job_id>/start", qa_views.qa_start, name="qa-start"),
+    path("qa/<int:qa_job_id>/resume", qa_views.qa_resume, name="qa-resume"),
+    path("qa/<int:qa_job_id>/pause", qa_views.qa_pause, name="qa-pause"),
+    path("qa/defect-logs/<int:job_id>", qa_views.defect_logs_page, name="qa-defect-logs"),
+    path("qa/defect-logs/<int:qa_job_id>/submit", qa_views.qa_submit, name="qa-submit"),
+    path("qa/defect-logs/<int:qa_id>/add-missing-defect-log", qa_views.qa_add_missing, name="qa-add-missing"),
+    path("qa/<int:cluster_id>/poll/", qa_views.qa_jobs_poll, name="qa_jobs_poll"),
+    path('clear-qa-errors/', qa_views.clear_qa_errors, name='clear-qa-errors'),
+
 
 
     # API

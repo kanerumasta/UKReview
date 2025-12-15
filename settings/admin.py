@@ -10,3 +10,5 @@ class JobSettingsAdmin(admin.ModelAdmin):
 @admin.register(QASettings)
 class QASettignsAdmin(admin.ModelAdmin):
     list_display= ('id', 'sampling_type')
+
+

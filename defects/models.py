@@ -42,6 +42,14 @@ class DefectLog(models.Model):
     comments = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+    #QA FIELDS
+    qa_correct = models.CharField(max_length=50, choices=[
+        ('yes', 'YES'),
+        ('no','NO')
+    ], null=True, blank=True)
+    qa_remarks = models.TextField(null=True, blank=True) #QA Comment
+    dispute_reason = models.TextField(null=True, blank=True)
+
     def get_absolute_url(self, request=None):
         if self.screenshot:
             if request:

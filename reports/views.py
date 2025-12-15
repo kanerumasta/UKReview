@@ -20,6 +20,7 @@ import tempfile
 from datetime import datetime
 from .models import ReportBatch
 from django.contrib import messages
+from qa.models import QACluster
  
 def reports_view(request):
     # if request.user.role == 'user':
@@ -174,8 +175,7 @@ def reports_view(request):
 
     return render(request, "reports/index.html", context)
  
- 
- 
+
 def partial_excel_report(request):
     batch_id = request.GET.get("batch")
     batch = get_object_or_404(Batch, id=batch_id)
@@ -572,6 +572,7 @@ def edit_defect_log(request, defect_id):
 
 
 def report_generation_detail(request, id):
+
     report_batch = get_object_or_404(ReportBatch, id=id)
     jobs_list = report_batch.jobs.all().order_by("id")  # optional ordering
 
@@ -585,3 +586,10 @@ def report_generation_detail(request, id):
         "jobs_page": jobs_page,
     }
     return render(request, "reports/report_batch_detail.html", context)
+
+
+#UK Review QA Reports
+def qa_report_index(request):
+    clusters = QACluster.objects.all()
+    context = {"clusters":clusters}
+    return render(request, "reports/qa_index.html", context=context)

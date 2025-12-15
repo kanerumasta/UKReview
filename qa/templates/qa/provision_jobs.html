@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+{% if messages %}
+<script>
+    {% for message in messages %}
+        Swal.fire({
+            title: "{{ message.tags|title|escapejs }}",
+            text: "{{ message|escapejs }}",
+            icon: "{% if 'error' in message.tags %}error{% elif 'success' in message.tags %}success{% else %}info{% endif %}",
+        });
+    {% endfor %}
+</script>
+{% endif %}
+
+
+
+    <div x-data>
+        
+
+        
+        <div class="p-6">
+            <table class="min-w-full divide-y divide-gray-200 rounded-lg border-[1px] border-gray-300">
+                <thead class="bg-gray-700 text-white">
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase">filename</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase">provision(refs)</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase">enactment citation</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Version date</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Batch</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase">date submitted</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase">QA User</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Action</th>
+                </thead>
+                <tbody id="jobs-table" class="bg-white divide-y divide-gray-200">
+                   
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+    const csrfToken = '{{ csrf_token }}';
+</script>
+
+    <script>
+        
+function formatRow(job) {
+    return `
+        <tr class="">
+            <td class="px-6 py-4 text-gray-600">${job.filename}</td>
+            <td class="px-6 py-4 text-gray-600">${job.provision}</td>
+            <td class="px-6 py-4 text-gray-600">${job.enactment}</td>
+            <td class="px-6 py-4 text-gray-600">${job.date}</td>
+            <td class="px-6 py-4 text-gray-600">${job.batch}</td>
+            <td class="px-6 py-4 text-gray-600">${job.submitted}</td>
+            <td class="px-6 py-4 text-gray-600 capitalize">
+            ${job.user}</td>
+            <td class="px-6 py-4 text-gray-600 capitalize">
+                <span class="px-2 font-semibold py-1 text-sm rounded-full 
+                    ${job.status === 'completed' ? 'bg-green-300' :
+                    job.status === 'ongoing' ? 'bg-yellow-400/50 text-yellow-800' :
+                    job.status === 'new' ? 'bg-blue-300' :
+                    'bg-gray-300'}">
+                    ${job.status}
+                </span>
+
+            </td>
+            
+          <td class='flex gap-1 min-h-full py-2'>
+
+    <!-- START button -->
+    ${job.status === 'new' ? `
+        <form method="POST" action="${job.start_action_url}">
+            <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+            <button type="submit"
+                class="flex cursor-pointer bg-blue-400 text-white px-3 py-2 rounded hover:bg-blue-300 transition">
+                <span><i class="bi bi-play-fill"></i></span>
+                Start
+            </button>
+        </form>
+    ` : ''}
+
+    <!-- RESUME button (only if owner + allowed status) -->
+    ${job.can_resume ? `
+        <form method="POST" action="${job.resume_action_url}">
+            <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+            <button type="submit"
+                class="flex cursor-pointer bg-yellow-500 text-black px-3 py-2 rounded hover:bg-yellow-400 transition">
+                <span><i class="bi bi-play-fill"></i></span>
+                Resume
+            </button>
+        </form>
+    ` : ''}
+
+    <!-- PAUSE button -->
+    ${job.can_pause ? `
+        <form method="POST" action="${job.pause_action_url}">
+            <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+            <button type="submit"
+                class="flex cursor-pointer bg-blue-400 text-white px-3 py-2 rounded hover:bg-blue-300 transition">
+                <span><i class="bi bi-pause-fill"></i></span>
+                Pause
+            </button>
+        </form>
+    ` : ''}
+
+</td>
+
+        </tr>
+    `;
+}
+
+
+function poll() {
+    fetch("{% url 'qa_jobs_poll' cluster_id %}")
+        .then(r => r.json())
+        .then(data => {
+            const body = document.getElementById("jobs-table");
+
+            body.innerHTML = ""; // Clear table
+
+            data.jobs.forEach(job => {
+                body.innerHTML += formatRow(job);
+            });
+        })
+        .catch(err => console.error("Polling error:", err));
+
+    setTimeout(poll, 3000); // Poll every 5 seconds
+}
+
+poll();
+</script>
+<script>
+    const currentUser = "{{ request.user.username }}";
+</script>
+
+
+
+{% endblock %}

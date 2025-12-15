@@ -1,13 +1,25 @@
 <nav class="h-[60px] flex justify-between sticky top-0 z-40 px-4 bg-gray-700 shadow-sm">
     <ul class="h-full flex items-center">
-        
+		{%if back_title2 and back_url2 %}
+			<h1 class=" px-3 py-1 rounded-full text-white/80"><a href="{{ back_url2 }}">{{back_title2}}</a></h1><span><i class="bi bi-chevron-compact-right text-white"></i></span>
+		{%endif%}
+		{%if back_title and back_url %}
+			<h1 class=" px-3 py-1 rounded-full text-white/80"><a href="{{ back_url }}">{{back_title}}</a></h1><span><i class="bi bi-chevron-compact-right text-white"></i></span>
+		{%endif%}
+        {% if title %}
+			{% if is_initial_title %}
+			<h1 class="text-white rounded-full px-3 py-1">{{title}}</h1>
+			{% else %}
+			<h1 class="bg-gray-800 rounded-full px-3 py-1 text-white/80">{{title}}</h1>
+			{%endif%}
+		{%endif%}
     </ul>
     <div class="h-full">
     	{% if user.is_authenticated %}
 		<div class="flex items-center space-x-4 h-full">
 			<!-- User badge -->
 			<span class="px-3 py-1 bg-gray-600 text-gray-100 rounded-full text-sm font-medium flex items-center">
-			{{ user.first_name }}
+			{{ user.username }}
 			</span>
 
 			<!-- Logout button -->

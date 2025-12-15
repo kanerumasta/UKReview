@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from enactments.models import Provision, Enactment
 
+
 USER = settings.AUTH_USER_MODEL
 
 
@@ -63,6 +64,9 @@ class ProvisionJob(models.Model):
     generation_date = models.DateTimeField(null=True, blank=True)
 
     last_edited = models.DateTimeField(auto_now=True)
+    in_qa = models.BooleanField(default=False)
+
+
 
 
     #Added for new type of input 11/18/2025
@@ -89,11 +93,6 @@ class ProvisionJob(models.Model):
         return total_seconds / 60
 
     
-
-
-    
-
-
 class ProvisionJobSession(models.Model):
     provision_job = models.ForeignKey(ProvisionJob, on_delete=models.CASCADE, related_name='sessions')
     started_at = models.DateTimeField(auto_now_add=True)

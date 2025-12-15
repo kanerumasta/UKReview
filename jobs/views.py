@@ -35,6 +35,8 @@ def jobs_index(request):
         'active_page': 'jobs',
         'jobs': jobs,
     }
+
+
  
     return render(request, 'jobs/index.html', context=context)
 

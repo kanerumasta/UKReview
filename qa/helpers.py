@@ -1,5 +1,14 @@
+from collections import defaultdict
+import random
+from .models import UserSamplingPriority
+from django.db.models import F
+
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+
 ANSI_TABLE = [
-    {"range": (2, 8),       "Reduced": (4, 5.46), "Normal": (4, 1.49), "Tightened": (5, 1.34)},
+    {"range": (1, 8),       "Reduced": (4, 5.46), "Normal": (4, 1.49), "Tightened": (5, 1.34)},
     {"range": (9, 15),      "Reduced": (4, 5.46), "Normal": (4, 1.49), "Tightened": (5, 1.34)},
     {"range": (16, 25),     "Reduced": (4, 5.46), "Normal": (4, 1.49), "Tightened": (7, 2.13)},
 
@@ -18,6 +27,13 @@ ANSI_TABLE = [
 
 
 def get_sampling_values(lot_size: int, sampling_type: str):
+    if lot_size <= 1:
+        return {
+            "sample_size": lot_size,          
+            "acceptance_limit": 0,   
+            "type": sampling_type,
+            "lot_size": lot_size
+        }
     for row in ANSI_TABLE:
         low, high = row["range"]
 
@@ -31,3 +47,55 @@ def get_sampling_values(lot_size: int, sampling_type: str):
             }
 
     raise ValueError(f"No sampling range found for lot size {lot_size}")
+
+
+def stratified_sampling(jobs_for_sampling, sample_size):
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    # Group jobs by user
+    jobs_by_user = defaultdict(list)
+    for job in jobs_for_sampling:
+        jobs_by_user[job.user_id].append(job)
+
+    num_users = len(jobs_by_user)
+    if num_users == 0:
+        return []
+
+    # Get the users sorted by qa_count ASC (lowest first)
+    sorted_users = sorted(
+        jobs_by_user.keys(),
+        key=lambda user_id: User.objects.get(id=user_id).qa_count
+    )
+
+    base_quota = sample_size // num_users
+    remainder = sample_size % num_users
+
+    sampled_jobs = []
+
+    # Prioritized round-robin based on sorted users
+    for user_id in sorted_users:
+        user_jobs = jobs_by_user[user_id]
+        quota = base_quota
+
+        if remainder > 0:
+            quota += 1
+            remainder -= 1
+
+        if len(user_jobs) <= quota:
+            selected_jobs = user_jobs
+        else:
+            selected_jobs = random.sample(user_jobs, quota)
+
+        sampled_jobs.extend(selected_jobs)
+
+    # update qa count once per user
+    update_users_qa_count(sampled_jobs)
+
+    return sampled_jobs
+
+def update_users_qa_count(sampled_jobs):
+    user_ids = set(job.user_id for job in sampled_jobs)
+
+    for user_id in user_ids:
+        User.objects.filter(id=user_id).update(qa_count=F('qa_count') + 1)

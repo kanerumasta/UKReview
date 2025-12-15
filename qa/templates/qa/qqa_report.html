@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="p-6">
+        <h3 class="font-semibold mb-6">2025 MDE Quick Quality Assurance Report (QQAR): LNKIL</h3>
+        <div class="mb-3 border-2 p-8 rounded-lg border-gray-400 space-y-3 max-w-[700px]">
+            <div>
+                <strong>Project Name:</strong>
+                <span>LNUK Legislation - UK Review</span>
+            </div>
+            <div>
+                <strong>Project Code:</strong>
+                <span>LNKCL</span>
+            </div>
+            <div>
+                <strong>Business Unit:</strong>
+                <span>Legal</span>
+            </div>
+            <div>
+                <strong>Client Onset:</strong>
+                <span>LexisNexis UK</span>
+            </div>
+            <div>
+                <strong>Total Sample Size:</strong>
+                <span>{{total_sample_size}}</span>
+            </div>
+            <div>
+                <strong># of Errors:</strong>
+                <span>{{error_count}}</span>
+            </div>
+            <div>
+                <strong>AQ:</strong>
+                <span>{{aq}}</span>
+            </div>
+            <div>
+                <strong>Audit Result:</strong>
+                <span>{{audit_result}}</span>
+            </div>
+            <div>
+                <strong>Audit Schedule:</strong>
+                <span>{{aq}}</span>
+            </div>
+            <div>
+                <strong>PM:</strong>
+                <span>Jaime Sapilan Jr.</span>
+            </div>
+            <div>
+                <strong>POC:</strong>
+                <span>N/A</span>
+            </div>
+            <div>
+                <strong>PIC:</strong>
+                <span>Divina Pino / Frenante Peralta</span>
+            </div>
+        </div>
+        <p class="text-sm text-blue-800 mb-2">*Average Quality (AQ) requirement in % (internal): 100%</p>
+        <p class="italic text-sm">Quality Rating = [(total no. of profiles - no. of profiles with errors) / total no. of profiles] x 100</p>
+    </div>
+
+{% endblock %}
