@@ -74,14 +74,14 @@
      <!-- Jobs Table -->
       <div class="p-4 ">
         <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50 sticky top-[80px]">
+        <thead class="bg-gray-700 sticky top-[80px] text-white-200">
             <tr>
                 {% for field, label, next_order in columns %}
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         <a href="?sort={{ field }}&order={{ next_order }}&batch={{ selected_batch|default:'' }}"
                         class="flex items-center
                                 {% if field == current_sort %}
-                                    text-black
+                                    text-blue-200
                                 {% endif %}
                         ">
                             <span class="mr-2">{{ label }}</span>

@@ -12,7 +12,7 @@
 			</a>
 		</li>
        
-        {% if user.role == "manager" %}
+        {% if request.user.role == "manager" %}
          <li class="duration-150 cursor-pointer ">
             <a href="{% url 'dropzone_index' %}" 
                class="flex items-center gap-2 p-3 
@@ -28,7 +28,7 @@
                <i class="bi bi-person-lines-fill"></i>Jobs
             </a>
         </li>
-        {% if user.role == "manager" %}
+        {% if request.user.role == "manager" %}
 		<li class="duration-150 cursor-pointer ">
             <a href="{% url 'allocations_index' %}" 
                class="flex items-center gap-2 p-3 
@@ -37,7 +37,7 @@
             </a>
         </li>
        {% endif %}
-     {% if user.role == "manager" %}
+     {% if request.user.role == "manager" %}
         <li class="duration-150 cursor-pointer ">
             <a href="{% url 'productivity_index' %}" 
                class="flex items-center gap-2 p-3 
@@ -55,7 +55,7 @@
                 </a>
             </li>
                   
-             {% if user.role == "manager" %}
+             {% if request.user.role == "manager" %}
         <li class="duration-150 cursor-pointer ">
                 <a href="{% url 'settings_index' %}" 
                 class="flex items-center gap-2 p-3 

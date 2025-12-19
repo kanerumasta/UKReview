@@ -274,6 +274,7 @@ def get_user_productivity(batch_id=None):
                 average_jobs_per_hour = round(avg, 4)
                 productivity_ratio = round(prod, 2)
 
+
                 # attach attributes used by template / view
                 setattr(u, "total_seconds", secs)
                 setattr(u, "total_hours", total_hours)
