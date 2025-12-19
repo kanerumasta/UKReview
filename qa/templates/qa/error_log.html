@@ -1,0 +1,157 @@
+{% extends "qa_base.html" %}
+
+{% block tab_content %}
+<div class="p-6 overflow-x-auto"  
+    x-data="{
+        showDisputeModal: false,
+        defectLogId: null,
+        buttonRect: null,
+        modalWidth: 320,
+        modalHeight: 180, // Default approximate height
+        
+        openDispute(id, el) {
+            this.defectLogId = id;
+            this.buttonRect = el.getBoundingClientRect();
+            
+            // Show modal first to ensure it's rendered
+            this.showDisputeModal = true;
+            
+            // Then measure and adjust position
+            this.$nextTick(() => {
+                const modal = this.$refs.disputeModal;
+                if (modal && modal.offsetHeight > 0) {
+                    this.modalHeight = modal.offsetHeight;
+                    
+                    // Update modal position after getting actual height
+                    const modalElement = modal;
+                    modalElement.style.top = (this.buttonRect.top + window.scrollY - this.modalHeight - 8) + 'px';
+                    modalElement.style.left = (this.buttonRect.left + window.scrollX - this.modalWidth - 8) + 'px';
+                }
+            });
+        },
+        
+        closeModal() {
+            this.showDisputeModal = false;
+            this.defectLogId = null;
+            this.buttonRect = null;
+        }
+    }">
+    
+  
+    <table class="min-w-full shadow-md divide-y divide-gray-200 rounded-lg">
+        <!-- Table headers and content same as before -->
+        <thead class="bg-gray-700 text-white">
+            <th class="px-6 py-4 text-left text-xs font-semibold uppercase">Enactment</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Provision</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">QA User</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Category</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Error Description</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Expected Outcome</th>
+            <th class=" text-left text-xs font-semibold uppercase max-w-[80px]">Severity level</th>
+            <th class="text-center text-xs font-semibold uppercase max-w-[80px]">Correct?</th>  
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">QA Remarks</th>  
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Action</th>  
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for provision_job, logs in grouped_logs.items %}
+                {% for log in logs %}
+                <tr class="">
+                    {% if forloop.first %}
+                        <td class="border border-gray-200 px-2 py-1" rowspan="{{ logs|length }}">
+                            {{ provision_job.provision.enactment.title }}
+                        </td>
+                        <td class="border border-gray-200 px-2 py-1" rowspan="{{ logs|length }}">
+                            {{ provision_job.provision.title }}
+                        </td>
+                    
+                        <td class="border border-gray-200 px-2 py-1 uppercase" rowspan="{{ logs|length }}">
+                            {{ provision_job.qa_job.qa_user.username }}
+                        </td>
+                    {% endif %}
+                    <td class="px-6 py-4 text-gray-600">{{log.category}}</td>
+                    <td class="px-6 py-4 text-gray-600">{{log.issue_description}}</td>
+                    <td class="px-6 py-4 text-gray-600">{{log.expected_outcome}}</td>
+                    <td class="px-6 py-4 text-gray-600">{{log.severity_level}}</td>
+                    <td class="px-6 py-4 text-center font-semibold  capitalize
+                        {% if log.qa_correct == 'yes' %}
+                            text-green-500 bg-green-50
+                        {%else%}
+                            text-red-400 bg-red-50
+                        {% endif  %}
+                    ">
+                        {{ log.qa_correct }}
+                    </td>
+                    <td class="px-6 py-4 text-gray-600 capitalize">{{log.qa_remarks}}</td>
+                    <td class="px-6 py-4 text-gray-600 capitalize relative">
+                        {% if log.can_dispute %}
+                            <button
+                                class="text-gray-700 cursor-pointer font-semibold rounded-full bg-red-300 px-4 py-2 hover:bg-red-400 transition"
+                                :class="defectLogId == '{{ log.id }}' ? 'bg-red-400' : 'bg-red-300'"
+                                @click="openDispute('{{ log.id }}', $el)"
+                            >
+                                Dispute
+                            </button>
+                        {% endif %}
+
+                        {% if log.dispute_reason and not log.can_dispute %}
+                            <small class="text-red-400">Dispute: </small><small>{{log.dispute_reason}}</small>
+                        {%endif%}
+                    </td>
+                </tr>
+                {% endfor%}
+            {%endfor%}
+        </tbody>
+    </table>
+    
+    <!-- Dispute Modal -->
+    <div
+        x-show="showDisputeModal"
+        x-transition
+        x-ref="disputeModal"
+        class="fixed z-50"
+        :style="{
+            top: showDisputeModal && buttonRect ? (buttonRect.top + window.scrollY - modalHeight) + 'px' : '0',
+            left: showDisputeModal && buttonRect ? (buttonRect.left + window.scrollX - modalWidth) + 'px' : '0',
+            display: showDisputeModal ? 'block' : 'none'
+        }"
+        x-cloak
+    >
+        <div class="bg-white border border-red-300 rounded-t-2xl rounded-l-2xl  shadow-lg p-4 w-[320px]">
+            <h3 class="font-semibold mb-3">Dispute Defect</h3>
+
+            <form method="POST" action="{% url 'qa-add-dispute'%}">
+                {% csrf_token %}
+                <input type="hidden" name="defect_log_id" :value="defectLogId">
+
+                <textarea
+                    name="dispute_reason"
+                    required
+                    rows="3"
+                    class="w-full border border-gray-400 focus:outline-red-300 focus:bg-red-50 rounded px-2 py-1 mb-3"
+                    placeholder="Enter dispute reason..."
+                ></textarea>
+
+                <div class="flex justify-end gap-2">
+                    <button 
+                        type="button" 
+                        @click="closeModal()"
+                        class="px-3 py-1 cursor-pointer text-gray-600 hover:text-gray-800"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="bg-red-400 cursor-pointer text-white px-3 py-2 rounded-md hover:bg-red-600"
+                    >
+                        Submit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+    
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+{% endblock %}

@@ -66,6 +66,9 @@ class ProvisionJob(models.Model):
     last_edited = models.DateTimeField(auto_now=True)
     in_qa = models.BooleanField(default=False)
 
+    is_rework = models.BooleanField(default=False)
+    rework_count = models.PositiveSmallIntegerField(default=0, null=True, blank=True)
+
 
 
 
@@ -91,6 +94,12 @@ class ProvisionJob(models.Model):
             0
         )
         return total_seconds / 60
+    
+    @property
+    def review_outcome(self):
+        if self.defect_logs.exists():
+            return "Defect Found"
+        return "No Defect Found"
 
     
 class ProvisionJobSession(models.Model):

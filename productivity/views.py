@@ -1,23 +1,17 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.core.paginator import Paginator
-import random
-import csv
-from datetime import datetime, timedelta, date
-from jobs.models import ProvisionJob
+from datetime import datetime
 from django.contrib.auth import get_user_model
 User = get_user_model()
-from django.views.decorators.cache import cache_page
 
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from django.db.models import Sum, Count, F, ExpressionWrapper, DurationField, Q, FloatField, Func, Case, When, Value, FloatField
+from django.db.models import Sum, Count, F, ExpressionWrapper, DurationField, Q, FloatField, Func, FloatField
 from django.contrib.auth import get_user_model
-from datetime import timedelta
-from django.db.models.functions import Cast
 from settings.models import JobSettings
 from django.shortcuts import get_object_or_404
 from enactments.models import Batch
@@ -142,16 +136,10 @@ def detail(request, user_id):
     if sort_by:
         jobs = jobs.order_by(sort_by)
 
-    
-    
-
     batches = Batch.objects.all()
 
     context = {"user":user,"jobs":jobs, "batches":batches, "selected_batch":selected_batch,"total_duration":sum(job.total_time_minutes for job in jobs)}
-    return render(request,"productivity/detail.html", context=context)
-
-
-
+    return render(request,"productivity/detail.html", cosntext=context)
 
 def export_to_excel(request):
     # Get user productivity data

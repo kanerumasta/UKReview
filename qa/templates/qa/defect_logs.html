@@ -153,18 +153,18 @@
              >
             {% csrf_token %}
 
-            <table class="min-w-full divide-y divide-gray-200 rounded-lg">
+            <table class="min-w-full divide-y divide-gray-200 border border-gray-300 rounded-lg">
                 <thead class="bg-gray-700 text-white text-xs uppercase text-left">
                     <th class="px-6 py-3 whitespace-nowrap">defect id</th>
                     <th class="px-6 py-3 whitespace-nowrap">category</th>
-                    <th class="px-6 py-3 whitespace-nowrap min-w-[250px]">check type</th>
+                    <th class="px-6 py-3 whitespace-nowrap">check type</th>
                     <th class="px-6 py-3 whitespace-nowrap">Issue Description</th>
                     <th class="px-6 py-3 max-w-[80px]">severity</th>
-                    <th class="px-6 py-3 max-w-[100px]">error count</th>
+                    <th class="px-6 py-3 max-w-[80px]">error count</th>
                     <th class="px-6 py-3 whitespace-nowrap">Expected outcome</th>
                     <th class="px-6 py-3 whitespace-nowrap">actual outcome</th>
                     <th class="px-6 py-3">correct?</th>
-                    <th class="px-6 py-3 min-w-[280px]">Remarks</th>
+                    <th class="px-6 py-3 min-w-[200px]">Remarks</th>
                 </thead>
 
                 <tbody class="bg-white divide-y divide-gray-200">

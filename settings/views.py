@@ -6,8 +6,9 @@ from django.views.decorators.csrf import csrf_exempt
 from defects.models import DefectCategory
 from .forms import DefectCategoryForm, DefectOptionFormSet
 from django.contrib import messages
-from .models import JobSettings
+from .models import JobSettings, QASettings
 from accounts.decorators import manager_required
+
 
 
 ###UK REVIEW SETTINGS
@@ -127,5 +128,28 @@ def update_parttime_quota(request):
 
     messages.error(request, 'Part-time quota update failed. Please try again later.')
     return redirect("settings_index")
+
+def edit_sampling_type(request):
+    if request.method == 'POST':
+        new_sampling_type = request.POST.get('new_sampling_type')
+        
+        # Validate the sampling type
+        valid_types = ['Normal', 'Reduced', 'Tightened']
+        if new_sampling_type not in valid_types:
+            messages.error(request, 'Invalid sampling type selected.')
+            return redirect('settings_index')
+        
+        # Get or create settings
+        settings, created = QASettings.objects.get_or_create(
+            defaults={'sampling_type': 'Normal'}
+        )
+        
+        # Update the sampling type
+        settings.sampling_type = new_sampling_type
+        settings.save()
+        
+        messages.success(request, f'Sampling type updated to {new_sampling_type}')
+        
+    return redirect('settings_index')
 
 ###

@@ -34,6 +34,8 @@ def jobs_index(request):
     context = {
         'active_page': 'jobs',
         'jobs': jobs,
+        'title':'JOBS',
+        'is_initial_title':True
     }
 
 

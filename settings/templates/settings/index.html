@@ -2,174 +2,448 @@
 {% block content %}
 
 {% if messages %}
-<div id="message-container" class="w-full px-6 mt-6">
+<div id="message-container" class="fixed top-20 right-4 z-50 max-w-md w-full">
     {% for message in messages %}
-    <div class="mb-4 px-4 py-3 rounded-lg text-black
-                {% if message.tags == 'error' %}bg-red-300{% endif %}
-                {% if message.tags == 'success' %}bg-green-300{% endif %}">
-        {{ message }}
+    <div class="mb-3 p-4 rounded-lg shadow-lg transform transition-all duration-300 animate-slide-in-right
+                {% if message.tags == 'error' %}bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500 text-red-800{% endif %}
+                {% if message.tags == 'success' %}bg-gradient-to-r from-green-50 to-emerald-100 border-l-4 border-emerald-500 text-emerald-800{% endif %}">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="bi {% if message.tags == 'error' %}bi-x-circle-fill{% else %}bi-check-circle-fill{% endif %} text-xl"></i>
+            </div>
+            <div class="ml-3">
+                <p class="font-medium">{{ message }}</p>
+            </div>
+        </div>
+        <div class="mt-2 w-full bg-gray-200 rounded-full h-1">
+            <div class="h-1 rounded-full bg-gradient-to-r {% if message.tags == 'error' %}from-red-500 to-red-600{% else %}from-emerald-500 to-green-600{% endif %} progress-bar"></div>
+        </div>
     </div>
     {% endfor %}
 </div>
 
 <script>
-    // Auto-hide messages after 3 seconds (3000ms)
+    // Auto-hide messages with progress bar
+    document.querySelectorAll('.progress-bar').forEach(bar => {
+        bar.style.transition = 'width 3s linear';
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.width = '100%';
+        }, 10);
+    });
+    
     setTimeout(() => {
         const container = document.getElementById('message-container');
         if (container) {
-            container.style.transition = "opacity 0.5s";
-            container.style.opacity = 0;
-            setTimeout(() => container.remove(), 500); // remove after fade out
+            container.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+            container.style.opacity = '0';
+            container.style.transform = 'translateX(100%)';
+            setTimeout(() => container.remove(), 500);
         }
     }, 3000);
 </script>
 {% endif %}
-<div class="p-6 mx-auto" x-data="{ jobCountEditMode: false,  quotaEditMode: false, parttimeQuotaEditMode: false  }">
-  
-  <!-- Page Title -->
-  <h1 class="text-2xl font-bold mb-6 text-gray-900">Settings</h1>
 
-  <!-- Max Job Count -->
-  <div class="mb-6 flex items-center gap-4">
-    <span class="font-semibold text-gray-700">Max Job Count Per User:</span>
-    <form method="POST" action="{% url 'edit_job_count' %}" class="flex items-center gap-2">
-      {% csrf_token %}
-      <input 
-        x-ref="jobCountInput"
-        name="new_count"
-        :disabled="!jobCountEditMode"
-        type="number"
-        value="{{ settings.max_job_count }}"
-        class="w-24 text-center text-gray-700 text-lg p-2 rounded border border-gray-300 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 disabled:bg-gray-100 disabled:text-gray-500"
-      >
+<div class="p-6 mx-auto p-4 md:p-6" x-data="settingsData()">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center gap-3 mb-2">
+            <i class="bi bi-gear-fill text-2xl text-blue-600"></i>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900">System Settings</h1>
+        </div>
+        <p class="text-gray-600">Configure system parameters and defect categories</p>
+    </div>
 
-      <!-- Edit Button -->
-      <button type="button" x-show="!jobCountEditMode" @click="jobCountEditMode = true; $nextTick(() => $refs.jobCountInput.focus())" class="text-gray-500 hover:text-blue-600 transition">
-        <i class="bi bi-pencil-square text-xl"></i>
-      </button>
+    <!-- Settings Cards Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Max Job Count Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+             x-data="{ editMode: false, value: '{{ settings.max_job_count }}' }">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="p-2 bg-blue-100 rounded-lg">
+                    <i class="bi bi-briefcase-fill text-blue-600 text-lg"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Max Job Count</h3>
+            </div>
+            
+            <p class="text-gray-600 text-sm mb-4">Maximum number of jobs allowed per user</p>
+            
+            <form method="POST" action="{% url 'edit_job_count' %}" class="space-y-4">
+                {% csrf_token %}
+                <div class="flex items-center gap-4">
+                    <div class="relative flex-1">
+                        <input 
+                            x-ref="inputField"
+                            name="new_count"
+                            :disabled="!editMode"
+                            x-model="value"
+                            type="number"
+                            min="1"
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200
+                                   disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                            :class="editMode ? 'bg-white shadow-sm' : ''"
+                        >
+                        <div class="absolute right-3 top-3">
+                            <span class="text-gray-500">jobs</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <template x-if="!editMode">
+                            <button 
+                                type="button" 
+                                @click="editMode = true; $nextTick(() => $refs.inputField.focus())"
+                                class="px-4 py-2 rounded-lg border border-gray-300 hover:border-blue-500 hover:text-blue-600 transition-colors duration-200 flex items-center gap-2">
+                                <i class="bi bi-pencil"></i>
+                                Edit
+                            </button>
+                        </template>
+                        
+                        <template x-if="editMode">
+                            <button 
+                                type="submit"
+                                class="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center gap-2 shadow-sm">
+                                <i class="bi bi-check-lg"></i>
+                                Save
+                            </button>
+                        </template>
+                        
+                        <template x-if="editMode">
+                            <button 
+                                type="button" 
+                                @click="editMode = false; value = '{{ settings.max_job_count }}'"
+                                class="px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 hover:text-gray-700 transition-colors duration-200 flex items-center gap-2">
+                                <i class="bi bi-x-lg"></i>
+                                Cancel
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </form>
+        </div>
 
-      <!-- Save / Cancel Buttons -->
-      <button x-show="jobCountEditMode" type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">Save</button>
-      <button x-show="jobCountEditMode" @click="jobCountEditMode=false" type="button" class="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400 transition">Cancel</button>
-    </form>
+        <!-- Quota Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+             x-data="{ editMode: false, value: '{{ settings.quota }}' }">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="p-2 bg-emerald-100 rounded-lg">
+                    <i class="bi bi-clock-fill text-emerald-600 text-lg"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Hourly Quota</h3>
+            </div>
+            
+            <p class="text-gray-600 text-sm mb-4">Maximum hours allowed per period</p>
+            
+            <form method="POST" action="{% url 'edit_quota' %}" class="space-y-4">
+                {% csrf_token %}
+                <div class="flex items-center gap-4">
+                    <div class="relative flex-1">
+                        <input 
+                            x-ref="inputField"
+                            name="new_quota"
+                            :disabled="!editMode"
+                            x-model="value"
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200
+                                   disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                            :class="editMode ? 'bg-white shadow-sm' : ''"
+                        >
+                        <div class="absolute right-3 top-3">
+                            <span class="text-gray-500">hours</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <template x-if="!editMode">
+                            <button 
+                                type="button" 
+                                @click="editMode = true; $nextTick(() => $refs.inputField.focus())"
+                                class="px-4 py-2 rounded-lg border border-gray-300 hover:border-emerald-500 hover:text-emerald-600 transition-colors duration-200 flex items-center gap-2">
+                                <i class="bi bi-pencil"></i>
+                                Edit
+                            </button>
+                        </template>
+                        
+                        <template x-if="editMode">
+                            <button 
+                                type="submit"
+                                class="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 flex items-center gap-2 shadow-sm">
+                                <i class="bi bi-check-lg"></i>
+                                Save
+                            </button>
+                        </template>
+                        
+                        <template x-if="editMode">
+                            <button 
+                                type="button" 
+                                @click="editMode = false; value = '{{ settings.quota }}'"
+                                class="px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 hover:text-gray-700 transition-colors duration-200 flex items-center gap-2">
+                                <i class="bi bi-x-lg"></i>
+                                Cancel
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </form>
+        </div>
 
-  </div>
+        <!-- Sampling Type Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+             x-data="{ editMode: false, value: '{{ settings.sampling_type }}' }">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="p-2 bg-purple-100 rounded-lg">
+                    <i class="bi bi-graph-up text-purple-600 text-lg"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900">Sampling Type</h3>
+            </div>
+            
+            <p class="text-gray-600 text-sm mb-4">Quality control inspection sampling plan</p>
+            
+            <form method="POST" action="{% url 'edit_sampling_type' %}" class="space-y-4">
+                {% csrf_token %}
+                <div class="space-y-3">
+                    <div class="relative flex gap-4 items-center">
+                        <select 
+                            x-ref="samplingSelect"
+                            name="new_sampling_type"
+                            :disabled="!editMode"
+                            x-model="value"
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200
+                                   disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed appearance-none"
+                            :class="editMode ? 'bg-white shadow-sm' : ''"
+                        >
+                            <option value="Normal" :selected="value === 'Normal'">Normal</option>
+                            <option value="Reduced" :selected="value === 'Reduced'">Reduced</option>
+                            <option value="Tightened" :selected="value === 'Tightened'">Tightened</option>
+                        </select>
+ 
+                        <div class="flex gap-3">
+                        <template x-if="!editMode">
+                            <button 
+                                type="button" 
+                                @click="editMode = true; $nextTick(() => $refs.samplingSelect.focus())"
+                                class="px-4 py-2 rounded-lg border border-gray-300 hover:border-purple-500 hover:text-purple-600 transition-colors duration-200 flex items-center gap-2">
+                                <i class="bi bi-pencil"></i>
+                                Edit
+                            </button>
+                        </template>
+                        
+                        <template x-if="editMode">
+                            <button 
+                                type="submit"
+                                class="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 flex items-center gap-2 shadow-sm">
+                                <i class="bi bi-check-lg"></i>
+                                Save
+                            </button>
+                        </template>
+                        
+                        <template x-if="editMode">
+                            <button 
+                                type="button" 
+                                @click="editMode = false; value = '{{ settings.sampling_type }}'"
+                                class="px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 hover:text-gray-700 transition-colors duration-200 flex items-center gap-2">
+                                <i class="bi bi-x-lg"></i>
+                                Cancel
+                            </button>
+                        </template>
+                    </div>
+                    </div>
+                    
+                    
+                    
+                </div>
+            </form>
+        </div>
+    </div>
 
-    <!-- Quota -->
-  <div class="mb-6 flex items-center gap-4">
-    <span class="font-semibold text-gray-700">Quota (Hourly):</span>
-    <form method="POST" action="{% url 'edit_quota' %}" class="flex items-center gap-2">
-      {% csrf_token %}
-      <input 
-        x-ref="quotaInput"
-        name="new_quota"
-        :disabled="!quotaEditMode"
-        type="number"
-        value="{{ settings.quota }}"
-        class="w-24 text-center text-gray-700 text-lg p-2 rounded border border-gray-300 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 disabled:bg-gray-100 disabled:text-gray-500"
-      >
 
-      <!-- Edit Button -->
-      <button type="button" x-show="!quotaEditMode" @click="quotaEditMode = true; $nextTick(() => $refs.quotaInput.focus())" class="text-gray-500 hover:text-blue-600 transition">
-        <i class="bi bi-pencil-square text-xl"></i>
-      </button>
+    <!-- Defect Categories Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">Defect Categories</h3>
+                <p class="text-gray-600 text-sm">Manage defect types and their severity levels</p>
+            </div>
+            <a href="{% url 'defect_category_create' %}" 
+               class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-sm">
+                <i class="bi bi-plus-lg"></i>
+                Add Category
+            </a>
+        </div>
 
-      <!-- Save / Cancel Buttons -->
-      <button x-show="quotaEditMode" type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">Save</button>
-      <button x-show="quotaEditMode" @click="quotaEditMode=false" type="button" class="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400 transition">Cancel</button>
-    </form>
-  </div>
-
-    <!-- Part-time Quota -->
-  <!-- <div class="mb-6 flex items-center gap-4">
-    <span class="font-semibold text-gray-700">Part-time Quota:</span>
-    <form method="POST" action="{% url 'edit_parttime_quota' %}" class="flex items-center gap-2">
-      {% csrf_token %}
-      <input 
-        x-ref="parttimeQuotaInput"
-        name="new_parttime_quota"
-        :disabled="!parttimeQuotaEditMode"
-        type="number"
-        value="{{ settings.parttime_quota }}"
-        class="w-24 text-center text-gray-700 text-lg p-2 rounded border border-gray-300 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 disabled:bg-gray-100 disabled:text-gray-500"
-      > -->
-
-      <!-- Edit Button -->
-      <!-- <button type="button" x-show="!parttimeQuotaEditMode" @click="parttimeQuotaEditMode = true; $nextTick(() => $refs.parttimeQuotaInput.focus())" class="text-gray-500 hover:text-blue-600 transition">
-        <i class="bi bi-pencil-square text-xl"></i>
-      </button> -->
-
-      <!-- Save / Cancel Buttons -->
-      <button x-show="parttimeQuotaEditMode" type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">Save</button>
-      <!-- <button x-show="parttimeQuotaEditMode" @click="parttimeQuotaEditMode=false" type="button" class="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400 transition">Cancel</button>
-    </form>
-  </div> -->
-
-
-
-  <!-- Defect Categories Header -->
-  <div class="flex justify-between items-center mb-4">
-    <h4 class="text-lg font-semibold text-gray-800">Defect Options</h4>
-    <a href="{% url 'defect_category_create' %}" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">+ Add Category</a>
-  </div>
-
-  <!-- Categories Table -->
-  <div class="overflow-x-auto rounded-lg shadow-sm">
-    <table class="min-w-full bg-white divide-y divide-gray-200 text-sm">
-      <thead class="bg-gray-100">
-        <tr>
-          <th class="px-4 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Name</th>
-          <th class="px-4 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Options - Severity</th>
-          <th class="px-4 py-2 text-center font-medium text-gray-700 uppercase tracking-wider">Actions</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100">
-        {% for category in categories %}
-        <tr class="hover:bg-gray-50 transition">
-          <td class="px-4 py-2 text-gray-700 font-medium">{{ category.name }}</td>
-          <td class="px-4 py-2">
-            <ul class="space-y-1">
-              {% for option in category.options.all %}
-              <li class="flex items-center gap-2">
-                <span>{{ option.check_type }}</span>
-                <!-- Severity Badge -->
-                <span class="{% if option.severity_level == 4 %}bg-red-500{% elif option.severity_level == 3 %}bg-orange-400{% elif option.severity_level == 2 %}bg-yellow-400{% else %}bg-blue-400{% endif %} text-white text-xs font-semibold px-2 py-0.5 rounded">
-                  {{ option.severity_level }}
-                </span>
-              </li>
-              {% endfor %}
-            </ul>
-          </td>
-          <td class="px-4 py-2 text-center">
-            <a href="{% url 'defect_category_update' category.id %}" class="text-blue-500 hover:underline mr-2">Edit</a>
-            <a href="{% url 'defect_category_delete' category.id %}" class="text-red-500 hover:underline">Delete</a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="3" class="px-4 py-4 text-gray-500 text-center">No categories available.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50">
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Defect Options</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for category in categories %}
+                    <tr class="hover:bg-gray-50 transition-colors duration-150">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-gray-100 rounded-lg">
+                                    <i class="bi bi-tag text-gray-600"></i>
+                                </div>
+                                <div>
+                                    <span class="font-medium text-gray-900">{{ category.name }}</span>
+                                    <p class="text-xs text-gray-500">{{ category.options.count }} options</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="space-y-2">
+                                {% for option in category.options.all %}
+                                <div class="flex items-center gap-3">
+                                    <span class="text-gray-700">{{ option.check_type }}</span>
+                                    <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                        {% if option.severity_level == 4 %}bg-red-100 text-red-800
+                                        {% elif option.severity_level == 3 %}bg-orange-100 text-orange-800
+                                        {% elif option.severity_level == 2 %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                        Severity {{ option.severity_level }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-2">
+                                <a href="{% url 'defect_category_update' category.id %}" 
+                                   class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                                   title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'defect_category_delete' category.id %}" 
+                                   class="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                                   title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="px-6 py-12 text-center">
+                            <div class="text-gray-400">
+                                <i class="bi bi-inbox text-4xl mb-2"></i>
+                                <p class="text-gray-500">No defect categories found</p>
+                                <p class="text-sm text-gray-400 mt-1">Add your first defect category</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <style>
-    /* Loader animation */
-    .loader {
-        border-width: 4px;
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
     }
-@keyframes progressBar {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-.animate-progress {
-  width: 50%;
-  animation: progressBar 1.5s linear infinite;
-}
+    
+    .animate-slide-in-right {
+        animation: slideInRight 0.3s ease-out;
+    }
+    
+    /* Smooth transitions */
+    * {
+        transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    }
+    
+    /* Custom scrollbar */
+    .overflow-x-auto::-webkit-scrollbar {
+        height: 6px;
+    }
+    
+    .overflow-x-auto::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+    
+    .overflow-x-auto::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+    
+    .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+        background: #a1a1a1;
+    }
+    
+    /* Custom select styling */
+    select {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding-right: 2.5rem;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 </style>
+
+<script>
+    function settingsData() {
+        return {
+            ANSI_TABLE: {{ ANSI_TABLE|safe }},
+            
+            getRowForLotSize(lotSize) {
+                for (const row of this.ANSI_TABLE) {
+                    if (lotSize >= row.range[0] && lotSize <= row.range[1]) {
+                        return row;
+                    }
+                }
+                return this.ANSI_TABLE[this.ANSI_TABLE.length - 1]; // Return last for large lot sizes
+            },
+            
+            getSampleSize(lotSize) {
+                const row = this.getRowForLotSize(lotSize);
+                const samplingType = '{{ settings.sampling_type }}';
+                return row[samplingType][0];
+            },
+            
+            getAcceptanceNumber(lotSize) {
+                const row = this.getRowForLotSize(lotSize);
+                const samplingType = '{{ settings.sampling_type }}';
+                const rejectionNumber = row[samplingType][1];
+                // Calculate acceptance number (typically rejection number - 1)
+                return Math.floor(rejectionNumber) - 1;
+            },
+            
+            init() {
+                // Add any initialization code here
+            }
+        }
+    }
+    
+    // Smooth focus transitions for inputs
+    document.addEventListener('focusin', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+            if (!e.target.disabled) {
+                e.target.classList.add('ring-2', 'ring-opacity-50');
+            }
+        }
+    });
+    
+    document.addEventListener('focusout', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+            e.target.classList.remove('ring-2', 'ring-opacity-50');
+        }
+    });
+</script>
 {% endblock %}
-
-

@@ -51,6 +51,8 @@ urlpatterns = [
     # Reports
     path('reports/', report_views.reports_view, name='reports_index'),
     path('reports/qa', report_views.qa_report_index, name='qa-reports-index'),
+
+    path("reports/qa/<int:cluster_id>/qqa-report", qa_views.qqa_report, name="qqa-report"),
     path("reports/partial_excel_report/", report_views.partial_excel_report, name="partial_excel_report"),
     path("reports/report-batch/<int:id>/", report_views.report_generation_detail, name="report_batch_detail"),
     path("reports/full_excel_report/", report_views.full_excel_report, name="full_excel_report"),
@@ -62,6 +64,7 @@ urlpatterns = [
 
     # Settings
     path("settings/", settings_views.index, name="settings_index"),
+    path('settings/sampling-type/', settings_views.edit_sampling_type, name='edit_sampling_type'),
     path("settings/job-count/edit/",settings_views.update_max_job_count, name="edit_job_count"),
     path("settings/add/", settings_views.defect_category_create, name="defect_category_create"),
     path("settings/edit-quota/", settings_views.update_quota, name="edit_quota"),
@@ -72,9 +75,12 @@ urlpatterns = [
     #QA
     path("qa/", qa_views.index, name="qa-index"),
     path("qa/qa-loading/", qa_views.qa_loading, name="qa-loading"),
-    path("qa/qqa-report/", qa_views.qqa_report, name="qqa-report"),
+    path("qa/recompute/", qa_views.recompute, name="recompute"),
+    
     path("qa/load-to-qa/<int:batch_id>/", qa_views.load_to_qa, name="load-to-qa"),
+    path("qa/add-dispute", qa_views.add_dispute, name="qa-add-dispute"),
     path("qa/<int:cluster_id>/", qa_views.provision_jobs_page, name="qa-detail"),
+
     path("qa/<int:qa_job_id>/start", qa_views.qa_start, name="qa-start"),
     path("qa/<int:qa_job_id>/resume", qa_views.qa_resume, name="qa-resume"),
     path("qa/<int:qa_job_id>/pause", qa_views.qa_pause, name="qa-pause"),

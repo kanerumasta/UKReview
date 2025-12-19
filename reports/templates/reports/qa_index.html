@@ -1,7 +1,7 @@
 {% extends "base.html"%}
 
 {% block content %}
-      <div class="p-6">
+      <div class="p-6" x-data>
             <table class="min-w-full border-[1px] border-gray-400 shadow-md divide-y divide-gray-200 rounded-lg">
                 <thead class="bg-gray-700 text-white">
                     <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Cluster ID</th>
@@ -15,17 +15,26 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for cluster in clusters %}
-                        <tr  @click="window.location.href='{% url 'qa-detail' cluster.id %}'" class="hover:cursor-pointer hover:bg-gray-100">
+                        <tr   class="">
                             <td class="px-6 py-4 text-gray-600">CLU-{{cluster.id|stringformat:"03d"}}</td>
                             <td class="px-6 py-4 text-gray-600">{{cluster.name}}</td>
                             <td class="px-6 py-4 text-gray-600">{{cluster.created_at}}</td>
                             <td class="px-6 py-4 text-gray-600">{{cluster.completed_at}}</td>
                             <td class="px-6 py-4 text-gray-600 capitalize">{{cluster.final_status}}</td>
                             <td class="px-6 py-4 text-gray-600 capitalize">
-                            <button class="border-2 px-3 py-1 rounded-full text-blue-400 border-blue-400 flex items-center gap-1">
-                                <span><i class="bi bi-eye text-xl"></i></span>
-                                <span>View</span>
-                            </button>
+                           <button
+                                {% if cluster.final_status == 'pass' or cluster.final_status == 'fail' %}
+                                    @click="window.location.href='{% url 'qqa-report' cluster.id %}'"
+                                    class="border-2 cursor-pointer hover:bg-blue-400 hover:text-white transition-all duration-150 px-3 py-1 rounded-full text-blue-400 border-blue-400 flex items-center gap-1"
+                                {% else %}
+                                    disabled
+                                    class="border-2 cursor-not-allowed px-3 py-1 rounded-full text-gray-400 border-gray-400 flex items-center gap-1"
+                                {% endif %}
+                            >
+
+                            <span><i class="bi bi-eye text-xl"></i></span>
+                            <span>View</span>
+                        </button>
                             </td>
                         </tr>
                          {% empty %}

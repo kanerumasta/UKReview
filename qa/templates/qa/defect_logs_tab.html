@@ -1,0 +1,87 @@
+{% extends "qa_base.html" %}
+
+{% block tab_content %}
+<div class="p-6 overflow-x-auto"  
+    x-data="{
+        showDisputeModal: false,
+        defectLogId: null,
+        buttonRect: null,
+        modalWidth: 320,
+        modalHeight: 180, // Default approximate height
+        
+        openDispute(id, el) {
+            this.defectLogId = id;
+            this.buttonRect = el.getBoundingClientRect();
+            
+            // Show modal first to ensure it's rendered
+            this.showDisputeModal = true;
+            
+            // Then measure and adjust position
+            this.$nextTick(() => {
+                const modal = this.$refs.disputeModal;
+                if (modal && modal.offsetHeight > 0) {
+                    this.modalHeight = modal.offsetHeight;
+                    
+                    // Update modal position after getting actual height
+                    const modalElement = modal;
+                    modalElement.style.top = (this.buttonRect.top + window.scrollY - this.modalHeight - 8) + 'px';
+                    modalElement.style.left = (this.buttonRect.left + window.scrollX - this.modalWidth - 8) + 'px';
+                }
+            });
+        },
+        
+        closeModal() {
+            this.showDisputeModal = false;
+            this.defectLogId = null;
+            this.buttonRect = null;
+        }
+    }">
+    
+  
+    <table class="min-w-full shadow-md divide-y divide-gray-200 rounded-lg">
+        <!-- Table headers and content same as before -->
+        <thead class="bg-gray-700 text-white">
+            <th class="px-6 py-4 text-left text-xs font-semibold uppercase">Enactment</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Provision</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">User</th>  
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Category</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Check Type</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Issue Description</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Expected Outcome(BES)</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Actual Outcome(L+CP)</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase max-w-[100px]">Severity level</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase max-w-[12px0px]">Count Per Document</th>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for provision_job, logs in grouped_logs.items %}
+                {% for log in logs %}
+                <tr class="">
+                    {% if forloop.first %}
+                        <td class="border border-gray-200 px-2 py-1  bg-blue-50" rowspan="{{ logs|length }}">
+                            {{ provision_job.provision.enactment.title }}
+                        </td>
+                        <td class="whitespace-nowrap border border-gray-200 px-2 py-1  bg-blue-50" rowspan="{{ logs|length }}">
+                            {{ provision_job.provision.title }}
+                        </td>
+                    <td rowspan="{{ logs|length }}" class="whitespace-nowrap px-6 py-4 text-gray-600  bg-blue-50 capitalize border border-gray-200">{% if provision_job.user.first_name != ' '%}{{provision_job.user.first_name}} {%else%} {{provision_job.user.username}}{%endif%}</td>
+
+                    {% endif %}
+                    <td class="px-6 py-4 text-gray-600 whitespace-nowrap">{{log.category}}</td>
+                    <td class="px-6 py-4 text-gray-600">{{log.check_type}}</td>
+                    <td class="px-6 py-4 text-gray-600">{{log.issue_description}}</td>
+                    <td class="px-6 py-4 text-gray-600">{{log.expected_outcome}}</td>
+                    <td class="px-6 py-4 text-gray-600">{{log.actual_outcome}}</td>
+                    <td class="px-6 py-4 text-gray-600">{{log.severity_level}}</td>
+                    <td class="px-6 py-4 text-gray-600">{{log.error_count}}</td>
+                  
+                </tr>
+                {% endfor%}
+            {%endfor%}
+        </tbody>
+    </table>
+</div>
+    
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+{% endblock %}

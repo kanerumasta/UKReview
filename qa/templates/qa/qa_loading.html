@@ -26,37 +26,55 @@
 </script>
 {% endif %}
 
-<div class="p-6" 
+<div class="p-6 bg-gray-100 min-h-[calc(100vh-60px)]" 
      x-data="{ 
         showModal: false, 
      }">
-
-  <h1 class="text-2xl font-bold mb-6 text-gray-700">QA Loading</h1>
-  <form id="filters-form" method="GET" class="mb-6 flex gap-4 items-center">
+<div class="flex justify-between items-center mb-8">
+  <form id="filters-form" method="GET" class=" flex gap-4 items-center">
     <label class="font-medium text-gray-700">Batch:</label>
-    <select name="batch" class="border rounded px-3 py-2">
+    <div>
+    <select name="batch" class="border border-gray-300 focus:outline-blue-400  rounded px-2 py-2">
         {% for batch in batches %}
             <option value="{{ batch.id }}" {% if batch.id == selected_batch_id %}selected{% endif %}>
                 {{ batch.name }}
             </option>
         {% endfor %}
     </select>
+  </div>
+    <div class="mt-4 mb-2">
+  <span class="text-sm text-gray-600">Total Jobs for Sampling:</span>
+  <span class="text-md font-semibold">{{sampling_data.lot_size}}</span>
+</div>
 </form>
 
   <div>
-    <button type="button" @click="showModal=true">Submit to QA</button>
+    <button
+    type="button"
+    @click="showModal=true"
+    {% if sampling_data.lot_size <= 0 %}
+        disabled 
+        class="bg-gray-400 cursor-not-allowed px-4 py-3 font-semibold text-white rounded-md shadow-md"
+    {% else %}
+        class="bg-gradient-to-r from-blue-500 to-blue-400 px-4 py-3 font-semibold text-white rounded-md cursor-pointer shadow-md hover:ring-2 hover:ring-offset-2 hover:ring-blue-300 hover:scale-105 transition-all duration-150"
+    {% endif %}
+>
+    Submit to QA
+</button>
   </div>
+</div>
+
 
   <!-- Jobs Table -->
-  <div class="overflow-x-auto bg-white shadow-lg p-6 rounded-lg">
+  <div class="overflow-x-auto bg-white shadow-lg p-4 rounded-lg">
     <table class="min-w-full divide-y divide-gray-200 rounded-lg">
-      <thead class="bg-gray-100"> 
+      <thead class="bg-gray-700 "> 
         <tr>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Filename</th>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Provision Ref</th>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Enactment citation</th>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">resource</th>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">date completed</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Filename</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Provision Ref</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">Enactment citation</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">resource</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-200 uppercase">date completed</th>
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
@@ -85,25 +103,25 @@
     <div class="mt-6 flex justify-center items-center space-x-2">
       {% if page_obj.has_previous %}
         <a href="?page={{ page_obj.previous_page_number }}" 
-           class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition">Previous</a>
+           class="px-3 py-2 rounded-full bg-blue-400 hover:bg-blue-400 transition"><i class="bi text-white bi-caret-left-fill"></i></a>
       {% else %}
-        <span class="px-3 py-1 bg-gray-100 rounded text-gray-400 cursor-not-allowed">Previous</span>
+        <span class="px-3 py-2 rounded-full bg-gray-100  text-gray-400 cursor-not-allowed"><i class="bi bi-caret-left-fill"></i></span>
       {% endif %}
 
       {% for num in page_obj.paginator.page_range %}
         {% if page_obj.number == num %}
-          <span class="px-3 py-1 bg-blue-600 text-white rounded">{{ num }}</span>
+          <span class="px-3 py-1 bg-blue-600 text-white rounded-full">{{ num }}</span>
         {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
           <a href="?page={{ num }}" 
-             class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition">{{ num }}</a>
+             class="px-3 py-1 bg-gray-200 rounded-full hover:bg-gray-300 transition">{{ num }}</a>
         {% endif %}
       {% endfor %}
 
       {% if page_obj.has_next %}
         <a href="?page={{ page_obj.next_page_number }}" 
-           class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 transition">Next</a>
+           class="rounded-full px-3 py-2 bg-blue-400 rounded hover:bg-blue-500 transition"><i class="bi text-white bi-caret-right-fill"></i></a>
       {% else %}
-        <span class="px-3 py-1 bg-gray-100 rounded text-gray-400 cursor-not-allowed">Next</span>
+        <span class="rounded-full px-3 py-2 bg-gray-100 rounded text-gray-400 cursor-not-allowed"> <i class="bi bi-caret-right-fill"></i></span>
       {% endif %}
     </div>
 
@@ -112,31 +130,63 @@
   </div>
   
   
-    <!-- Modal -->
-<div x-show="showModal" x-transition.opacity 
-     class="fixed inset-0 flex items-center justify-center bg-black/30 z-50">
+  <!-- Modal -->
+<div x-show="showModal" class="relative">
 
+  <!-- Backdrop -->
+  <div
+    x-show="showModal"
+    x-transition.opacity.duration.300ms
+    class="fixed inset-0 bg-black/30 z-40"
+    @click="showModal = false"
+  ></div>
+
+  <!-- Panel -->
+  <div
+    x-show="showModal"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+    x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+    x-transition:leave-end="opacity-0 scale-95 translate-y-4"
+    class="fixed inset-0 z-50 flex items-center justify-center"
+  >
+    <div class="bg-white rounded-md border-3 border-blue-400 f overflow-hidden shadow-xl w-[420px]">
+      <!-- header -->
+      <div class="bg-gradient-to-r from-blue-500 to-blue-400 py-3 px-4 text-white">
+        Submit Jobs to QA
+      </div>
+
+      <!-- body -->
+      <p class="px-4 text-xs text-gray-600 mt-4">
+        These jobs will be grouped into a new QA cluster.
+      </p>
+<p class="px-4 text-xs text-gray-600 ">Please review the details below before submitting.</p>
     <form method="POST" action="{% url 'load-to-qa' batch_id=selected_batch_id %}">
     {% csrf_token %}
     <input type="hidden" name="cluster_name" value="{{ cluster_name }}">
 
-    <div class="space-y-1 my-4">
-        <div><strong>Cluster Name:</strong> {{ cluster_name }}</div>
-        <div><strong>Number of Jobs:</strong> {{ sampling_data.lot_size }}</div>
-        <div><strong>Sampling Type:</strong> {{ sampling_data.type }}</div>
-        <div><strong>Sampling Size:</strong> {{ sampling_data.sample_size }}</div>
+    <div class="space-y-2 m-4 pb-4 border-b mb-4 border-gray-300 ">
+      
+        <div><span class="text-gray-800 ">Cluster Name:</span> <span class="text-blue-400 font-semibold">{{ cluster_name }}</span></div>
+        <div><span class="text-gray-800 ">Number of Jobs:</span> <span class="text-blue-400 font-semibold">{{ sampling_data.lot_size }}</span></div>
+        <div><span class="text-gray-800 ">Sampling Type:</span> <span class="text-blue-400 font-semibold">{{ sampling_data.type }}</span></div>
+        <div><span class="text-gray-800 ">Sampling Size:</span> <span class="text-blue-400 font-semibold">{{ sampling_data.sample_size }}</span></div>
     </div>
 
-    <div class="flex justify-end space-x-2">
+    <div class="flex justify-end space-x-2 mb-4 mx-4">
         <button type="button" @click="showModal=false"
-                class="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-md">Cancel</button>
+                class="px-4 cursor-pointer py-2 bg-gray-300 hover:bg-gray-400 rounded-md">Cancel</button>
 
         <button type="submit"
-                class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md">
+                class="px-4 cursor-pointer py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md">
             Confirm
         </button>
     </div>
 </form>
+    </div>
+  </div>
 
 </div>
 

@@ -9,23 +9,55 @@ from django.core.exceptions import ImproperlyConfigured
 from .models import QACluster,QAMissingDefectLog, QAJob, QASession
 from django.contrib import messages
 from .helpers import get_sampling_values, stratified_sampling
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Min
 import json
 from django.http import JsonResponse
 from defects.models import DefectLog, DefectCategory, DefectOption
 from django.db import transaction
 # views.py
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.views.decorators.csrf import csrf_exempt
 import json
+from django.core.cache import cache
+from django.utils import timezone
+from collections import OrderedDict
+
+
+from django.db.models import Count, Q, FloatField, ExpressionWrapper, F
+CACHE_TTL = 60 * 60  # 1 hour
 
 def index(request):
-    all_clusters = QACluster.objects.all()
-    clusters = all_clusters.annotate(selected_qa_jobs_count= Count('qa_jobs', filter=Q(qa_jobs__is_selected=True))).exclude(qa_status = 'completed')
-    completed_clusters = all_clusters.filter(qa_status = "completed").annotate(selected_qa_jobs_count= Count('qa_jobs', filter=Q(qa_jobs__is_selected=True)))
-    context = {"clusters": clusters, "completed_clusters":completed_clusters,"active_page":"qa","title":"QA Dashboard","is_initial_title":True}
-    return render(request,'qa/index.html', context=context)
+    all_clusters = QACluster.objects.all().annotate(
+        selected_qa_jobs_count=Count('qa_jobs', filter=Q(qa_jobs__is_selected=True)),
+        total_qa_jobs_count=Count('qa_jobs'),
+        completed_qa_jobs_count=Count('qa_jobs', filter=Q(qa_jobs__status='completed'))
+    ).annotate(
+        # Calculate completion percentage
+        progress_percentage=ExpressionWrapper(
+            F('completed_qa_jobs_count') * 100.0 / F('sample_size'),
+            output_field=FloatField()
+        )
+    )
+    
+    # For clusters: exclude completed and certain manager statuses
+    clusters = all_clusters.exclude(qa_status='completed').exclude(
+        manager_status__in=['recompute', 'rework']
+    )
+    
+    completed_clusters = all_clusters.filter(qa_status="completed").exclude(manager_status='recompute')
+    recomputed_clusters = all_clusters.filter(manager_status='recompute')
+
+    context = {
+        "clusters": clusters,
+        "completed_clusters": completed_clusters,
+        "recomputed_clusters": recomputed_clusters,
+        "active_page": "qa",
+        "title": "QA Dashboard",
+        "is_initial_title": True,
+    }
+    return render(request, 'qa/index.html', context=context)
+
 
 
 def qa_loading(request):
@@ -58,7 +90,7 @@ def qa_loading(request):
         status="completed",
         provision__batch=selected_batch.id,
         in_qa = False
-    )
+    ).order_by('-created_at')
 
     # --- Cluster name logic ---
     last_cluster = QACluster.objects.last()
@@ -84,7 +116,10 @@ def qa_loading(request):
         "sampling_data": sampling_data,
         "batches": batches,
         "selected_batch_id": selected_batch.id,
+        "title":"QA Loading",
+        "is_initial_title":True
     }
+   
 
     return render(request, "qa/qa_loading.html", context)
 
@@ -105,6 +140,7 @@ def load_to_qa(request, batch_id):
     sampling_data = get_sampling_values(lot_size, qa_settings.sampling_type)
 
     sample_size = sampling_data['sample_size']
+    sampling_type = sampling_data['type']
     
 
     if not jobs_for_sampling.exists():
@@ -114,7 +150,9 @@ def load_to_qa(request, batch_id):
     try:
         # Create the cluster
         cluster = QACluster.objects.create(
-            created_by=request.user
+            created_by=request.user,
+            sample_size = sample_size,
+            sampling_type = sampling_type
         )
 
         sampled_jobs = stratified_sampling(jobs_for_sampling, sample_size)
@@ -132,6 +170,7 @@ def load_to_qa(request, batch_id):
             
 
         messages.success(request, f"{jobs_for_sampling.count()} jobs successfully submitted to QA.")
+        return redirect("qa-detail", cluster_id = cluster.id)
     except Exception as e:
         print(e)
         messages.error(request, "Error creating a cluster.")
@@ -268,8 +307,6 @@ def qa_submit(request, qa_job_id):
         # Get all defects for this job
         defects = qa_job.job.defect_logs.all()
 
-        print(defects)
-        print('Answers',answers)
         # Initialize list for defect IDs with errors
         error_defect_ids = []
         
@@ -339,12 +376,10 @@ def qa_submit(request, qa_job_id):
         
         # If validation passes, save the answers
         try:
+            all_correct = True
             for defect_id_str, values in answers.items():
                 try:
-                    print('defec_id',defect_id)
-                    
-                    defect = DefectLog.objects.get(pk=defect_id, provision_job=qa_job.job)
-                    print('DEFECT', defect)
+                    defect = DefectLog.objects.get(pk=defect_id_str, provision_job=qa_job.job)
                     
                     answer = values.get("answer", "").lower()
                     remarks = values.get("remarks", "").strip()
@@ -352,26 +387,41 @@ def qa_submit(request, qa_job_id):
                     # Validate answer before saving
                     if answer not in ['yes', 'no']:
                         continue  # Skip invalid entries
+
+                    #Fail job if not all answers are 'YES'
+
+                    if answer.lower() != 'yes':
+                        all_correct = False
                     
                     defect.qa_correct = answer
-                    defect.qa_remarks = remarks if answer == 'no' else ""  # Clear remarks for 'yes'
-                    print('Answer', defect.qa_correct)
+                    defect.qa_remarks = remarks # Clear remarks for 'yes'
                     defect.save()
                     
                 except (DefectLog.DoesNotExist, ValueError):
                     continue  # Skip invalid defect IDs
             
+            qa_job.outcome = 'pass' if all_correct else 'fail'
+
+            
             # Update QA job status and end session
             qa_job.status = 'completed'
             qa_job.end_date = datetime.now()
-            
+                
             # End any active session
             last_session = QASession.objects.filter(qa_job=qa_job, ended_at__isnull=True).first()
             if last_session:
                 last_session.ended_at = datetime.now()
                 last_session.save()
+
+            #Error count of the job
+
+            missing_defects_count = QAMissingDefectLog.objects.filter(qa_job = qa_job).count()
+            error_defects_count = sum(1 for v in answers.values() if v.get('answer') == 'no')
+
+            qa_job.job_error_count = missing_defects_count + error_defects_count
             
             qa_job.save()
+
             
             messages.success(request, "QA results submitted successfully!")
             
@@ -402,9 +452,11 @@ def qa_submit(request, qa_job_id):
                 
                 # Check if all selected QA jobs are COMPLETED
                 all_complete = not qa_jobs.exclude(status='completed').exists()
-                
+
                 if all_complete:
+                    
                     # Determine if cluster passed or failed
+
                     all_pass = not qa_jobs.exclude(outcome='pass').exists()
                     cluster.final_status = 'pass' if all_pass else 'fail'
                     cluster.completed_at = datetime.now()
@@ -510,7 +562,7 @@ def qa_jobs_poll(request, cluster_id):
             "enactment": j.job.provision.enactment.title,
             "date": j.job.date.strftime("%m/%d/%Y") if j.job.date else "",
             "batch": j.job.provision.enactment.batch.name,
-            "user": j.qa_user.get_fullname().strip() or j.qa_user.username if j.qa_user else "-",
+            "user": j.qa_user.get_fullname().strip() or j.qa_user.username if j.qa_user else "unassigned",
             "submitted": j.job.end_date.strftime('%b-%d-%Y') if j.job.end_date else "",
             "start_action_url": reverse("qa-start", args=[j.id]),
             "resume_action_url":reverse("qa-resume", args=[j.id]),
@@ -541,8 +593,239 @@ def clear_qa_errors(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
 
-def qqa_report(request):
-    context = {}
+def qqa_report(request, cluster_id):
+    cluster  = get_object_or_404(QACluster, id = cluster_id)
+    tab = request.GET.get('tab', 'project')
+
+
+    context = {
+        'title':'QQA Report',
+        'back_title':'QA Reports',
+        'back_url':reverse('qa-reports-index'),
+        'cluster':cluster,
+        'active_tab':'project'
+    }
+
+    if tab == 'project':
+        return render(request,'qa/qqa_report.html', context=context)
+    
+
+
+    elif tab == 'error-log':
+        cache_key = f"qqa:error_logs:cluster:{cluster.id}"
+
+        error_logs = cache.get(cache_key)
+        if error_logs is None:
+            error_logs =  DefectLog.objects.filter(
+                    provision_job__qa_job__qa_cluster=cluster,
+                    provision_job__qa_job__is_selected = True
+                ).select_related(
+                    "provision_job",
+                    "provision_job__qa_job",
+                    "provision_job__qa_job__qa_cluster"
+                )
+            error_logs = list(error_logs)
+            cache.set(cache_key, error_logs, CACHE_TTL)
+
+        # Add can_dispute attribute
+        for log in error_logs:
+            log.can_dispute = (log.qa_correct == "no" and log.dispute_reason is None)
+
+         # Group defect logs by provision_job
+        grouped_logs = OrderedDict()
+        for log in error_logs:
+            job = log.provision_job
+            if job not in grouped_logs:
+                grouped_logs[job] = []
+            grouped_logs[job].append(log)
+
+
+        context['grouped_logs'] = grouped_logs
+        context['active_tab'] = 'error-log'
+        return render(request,'qa/error_log.html', context=context)
+    
+
+
+    elif tab == 'defect-log':
+        cache_key = f"qqa:defect_logs:cluster:{cluster.id}"
+
+        defect_logs = cache.get(cache_key)
+        if defect_logs is None:
+            defect_logs =  DefectLog.objects.filter(
+                    provision_job__qa_job__qa_cluster=cluster
+                ).select_related(
+                    "provision_job",
+                    "provision_job__qa_job",
+                    "provision_job__qa_job__qa_cluster"
+                )
+            defect_logs = list(defect_logs)
+            print('DEFECT LG', defect_logs)
+            cache.set(cache_key, defect_logs, CACHE_TTL)
+
+
+        # Add can_dispute attribute
+
+         # Group defect logs by provision_job
+        grouped_logs = OrderedDict()
+        for log in defect_logs:
+            job = log.provision_job
+            if job not in grouped_logs:
+                grouped_logs[job] = []
+            grouped_logs[job].append(log)
+
+        context['active_tab'] = 'defect-log'
+        context['grouped_logs'] = grouped_logs
+        return render(request,'qa/defect_logs_tab.html', context=context)
+    
+
+    elif tab == 'query-log':
+        context['active_tab'] = 'query-log'
+        return render(request,'qa/query_log.html', context=context)
+    
+
+
+    elif tab == 'enactments':
+        cache_key  = f"qqa:enactments:cluster:{cluster_id}"
+        provision_jobs = cache.get(cache_key)
+        
+        if provision_jobs is None:
+            provision_jobs = (
+                    ProvisionJob.objects
+                    .filter(qa_job__qa_cluster=cluster)
+                    .annotate(lowest_severity_level=Min("defect_logs__severity_level"))
+                    
+                )
+
+            provision_jobs = list(provision_jobs)
+
+            cache.set(cache_key, provision_jobs, CACHE_TTL)
+
+        
+        grouped_logs = OrderedDict()
+        for job in provision_jobs:
+            enactment = job.provision.enactment
+            if enactment not in grouped_logs:
+                grouped_logs[enactment] = []
+            grouped_logs[enactment].append(job)
+
+        context['grouped_logs'] = grouped_logs
+        context['active_tab'] = 'enactments'
+        context['batch'] = provision_jobs[0].provision.batch.name
+        return render(request,'qa/enactments.html', context=context)
+
 
     return render(request,'qa/qqa_report.html', context=context)
+
+def add_dispute(request):
+
+    defect_id = request.POST.get('defect_log_id')
+    if defect_id:
+        defect = get_object_or_404(DefectLog, id = defect_id)
+    if request.method == 'POST' and defect is not None:
+        dispute_reason = request.POST.get('dispute_reason')
+        if dispute_reason:
+            defect.dispute_reason = dispute_reason
+            defect.disputed_by = request.user
+            defect.dispute_date = timezone.now()
+            
+
+            defect.save()
+
+            # CLEAR THE CACHE for this cluster's error logs
+            cluster_id = defect.provision_job.qa_job.qa_cluster.id
+            cache_key = f"qqa:error_logs:cluster:{cluster_id}"
+            cache.delete(cache_key)
+
+    return redirect(request.META.get('HTTP_REFERER', 'qa-index'))
+
+
+@require_POST
+@csrf_exempt
+def recompute(request):
+    if request.method == 'POST':
+        cluster_id = request.POST.get('cluster_id')
+
+        if cluster_id:
+            cluster = get_object_or_404(QACluster, id = cluster_id)
+
+            cluster.manager_status = 'recompute'
+            cluster.final_status = 'ongoing'
+            cluster.qa_status = 'ongoing'
+            cluster.increment_counter()
+            cluster.save()
+
+            sampled_jobs = cluster.qa_jobs.filter(is_selected=True)
+
+            for job in sampled_jobs:
+                job.is_selected = False
+                job.outcome = None
+                job.start_date = None
+                job.end_date = None
+                job.job_error_count = None
+                job.in_qa = False
+                job.status = 'new'
+                job.qa_user = None
+                job.save()
+
+            #Do sampling
+
+            jobs_for_sampling = []
+
+            for qa_job in cluster.qa_jobs.all():
+                jobs_for_sampling.append(qa_job.job)
+
+            sampled_jobs = stratified_sampling(jobs_for_sampling, cluster.sample_size)
+
+            sampled_ids = set(j.id for j in sampled_jobs)
+
+            for job in jobs_for_sampling:
+                print('JOB', job.id)
+
+                
+                job.qa_job.is_selected =  job.id in sampled_ids
+                
+                job.in_qa = True
+                job.save()
+                job.qa_job.save()
+                
+
+            #clear cache
+
+            cache_key1 = f"qqa:error_logs:cluster:{cluster_id}"
+            cache_key2 = f"qqa:defect_logs:cluster:{cluster_id}"
+            cache.delete(cache_key1)
+            cache.delete(cache_key2)
+
+    return redirect( 'qa-reports-index')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

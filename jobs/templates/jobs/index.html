@@ -33,69 +33,68 @@
         </div>
     </div>
     <div class="p-6">
-    
-    <h1 class="mt-4 font-bold text-gray-700 text-xl mb-6">Jobs</h1>
-  
-    <div class="mb-4 flex justify-between">
-        <div class="space-x-2">
-            <strong class="font-semibold text-gray-500">Enactment:</strong><span class="font-semibold">{{ jobs.0.provision.enactment.title }}</span>
-        </div>
-          {% if jobs.exists %}
-          <div class="flex gap-2">
-        <div class="flex items-center space-x-4">
-            <div class="relative" x-data="{ search: '' }">
-                <input
-                    type="text"
-                    x-model="search"
-                    id="searchInput"
-                    placeholder="Search..."
-                    class="w-full border border-gray-300 placeholder:italic rounded px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    @input="$dispatch('search-updated', search)"
-                />
-                <button
-                    type="button"
-                    x-show="search.length > 0"
-                    @click="search = ''; $dispatch('search-updated', search)"
-                    class="absolute cursor-pointer text-3xl right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                    aria-label="Clear search"
-                >
-                    &times;
-                </button>
+        <div class="flex justify-between items-center">
+            <div class="space-x-2">
+                <strong class="font-semibold text-gray-500">Enactment:</strong><span class="font-semibold">{{ jobs.0.provision.enactment.title }}</span>
+            </div>
+            {% if jobs.exists %}
+            <div class="flex gap-2">
+                <div class="flex items-center space-x-4">
+                    <div class="relative" x-data="{ search: '' }">
+                        <input
+                            type="text"
+                            x-model="search"
+                            id="searchInput"
+                            placeholder="Search..."
+                            class="w-full border border-gray-300 placeholder:italic rounded px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            @input="$dispatch('search-updated', search)"
+                        />
+                        <button
+                            type="button"
+                            x-show="search.length > 0"
+                            @click="search = ''; $dispatch('search-updated', search)"
+                            class="absolute cursor-pointer text-3xl right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                            aria-label="Clear search"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                <div class="space-x-2">
+                    <strong class="font-normal text-sm text-gray-500">Remaining:</strong><span class="font-semibold">{{ jobs.count }}</span>
                 </div>
-
-        <div class="space-x-2">
-            <strong class="font-normal text-sm text-gray-500">Remaining:</strong><span class="font-semibold">{{ jobs.count }}</span>
-        </div>
         
-    </div>
-     {% endif %}
-    <div class="flex justify-end">
-   <form method="POST" action="{% url 'allocate_enactment' %}" @submit="loading = true">
-       {% csrf_token %}
-       <button type="submit" class="bg-blue-500 my-4 cursor-pointer text-white px-4 py-2 rounded hover:bg-blue-600 transition">
-           Allocate Enactment
-       </button>
-   </form>
-</div>
-</div>
-    </div>
+            </div>
+            {% endif %}
+            <div class="flex justify-end">
+                <form method="POST" action="{% url 'allocate_enactment' %}" @submit="loading = true">
+                    {% csrf_token %}
+                    <button type="submit" class="bg-blue-500 my-4 cursor-pointer text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                        <i class="bi bi-plus text-xl"></i> 
+                        Allocate Enactment
+                    </button>
+                </form>
+            </div>
+         </div>
+            </div>
    
     
-    <!-- Allocate Enactment Button -->
+        <!-- Allocate Enactment Button -->
    
    
 
-    <!-- Jobs Table -->
-    <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50 sticky top-[80px]">
+        <!-- Jobs Table -->
+         <div {% if jobs.count < 1 %}class="px-6"{%endif%}>
+    <table class="min-w-full divide-y divide-gray-200 border border-gray-300 shadow-sm">
+        <thead class="bg-gray-700 text-gray-200 sticky top-[80px]">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provision Ref(s)</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enactment Citation</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version Date</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                <th class="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider">ID</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Provision Ref(s)</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Enactment Citation</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Filename</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Version Date</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Action</th>
             </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
@@ -120,6 +119,8 @@
                     text-blue-500 
                 {% elif job.status == 'completed' %}
                     text-green-500 
+                {% elif job.status == 'pending' %}
+                    text-blue-600 bg-blue-100
                 {% else %}
                     text-gray-500 bg-gray-200
                 {% endif %}
@@ -129,7 +130,7 @@
                    
                     <form method="POST" action="{% url 'start_job' job.id %}" @submit="loading = true">
                         {% csrf_token %}
-                        <button type="submit" class="flex cursor-pointer bg-blue-400 text-white px-3 py-2 rounded hover:bg-green-600 transition" title="Start">
+                        <button type="submit" class="flex cursor-pointer bg-blue-400 text-white px-3 py-2 rounded hover:bg-blue-600 hover:scale-102 transition" title="Start">
                             <span><i class="bi bi-play-fill"></i></span> 
                             {%if job.status == 'onhold'%}
                             Resume
@@ -175,11 +176,12 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="5" class="px-6 py-4 whitespace-nowrap text-center text-gray-500">No jobs available.</td>
+                <td colspan="7" class="px-6 py-4 whitespace-nowrap text-center text-gray-500">No jobs available.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+</div>
 </div>
 
  

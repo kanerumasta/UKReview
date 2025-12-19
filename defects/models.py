@@ -3,6 +3,9 @@ from enactments.models import Enactment, Provision
 from jobs.models import ProvisionJob
 import os
 from django.utils.timezone import now
+from django.contrib.auth import get_user_model
+
+USER = get_user_model()
 
 
 def defect_log_screenshot_path(instance, filename):
@@ -48,7 +51,11 @@ class DefectLog(models.Model):
         ('no','NO')
     ], null=True, blank=True)
     qa_remarks = models.TextField(null=True, blank=True) #QA Comment
+
+    disputed_by = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, blank=True)
+
     dispute_reason = models.TextField(null=True, blank=True)
+    dispute_date = models.DateTimeField(null=True, blank=True)
 
     def get_absolute_url(self, request=None):
         if self.screenshot:

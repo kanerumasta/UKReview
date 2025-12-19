@@ -141,7 +141,7 @@
         ></div>
         </div>
     </div>
-<div class="p-6">
+<div class="px-6 py-3">
  
 
      <div class="flex items-center justify-between mb-4">
@@ -276,7 +276,7 @@
 
   <!-- Upload Wrapper -->
   <div 
-    class="mt-2 border-2 border-dashed rounded-lg p-4 py-8 hover:bg-blue-100 border-blue-400 text-center cursor-pointer transition"
+    class="mt-2 border-2 border-dashed rounded-lg p-4 py-6 hover:bg-blue-100 border-blue-400 text-center cursor-pointer transition"
     :class="isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-300'"
     @click="$refs.screenshotInput.click()"
     @dragover.prevent="isDragging = true"
@@ -336,7 +336,7 @@
                 </div>
 
                 <!-- Add Defect Log -->
-                <div class="mt-8">
+                <div class="mt-4">
                     <button type="submit"
                             class=" bg-blue-400 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
                         
@@ -360,9 +360,9 @@
             </form>
         </div>
         <!-- Job Information -->
-        <div :class="openForm ? 'col-span-2 bg-gray-50 border border-gray-100 p-3 ' : 'col-span-3'">
-            <div class="border-b border-gray-200 mb-2">
-            <div class="mb-6  flex gap-4">
+        <div :class="openForm ? 'col-span-2 p-2 ' : 'col-span-3'">
+            <div class="mb-2 ">
+            <div class="bg-gray-200 p-2 rounded flex gap-4">
                 <div class="space-y-2">               
                      <p class="text-gray-700"><span class="text-black font-semibold">Filename:</span>  {% if job.filename.trim %}
               {{job.filename}}
@@ -399,33 +399,33 @@
             </div>
 
             <!-- Defect Logs Section -->
-            <div >
-                <h2 class="text-xl font-semibold mb-2">Defect Logs</h2>
+            <div class=" min-h-[300px] rounded mt-6">
+                <h2 class="text-lg font-semibold mb-2 text-gray-500">Defect Logs</h2>
                 {% if defect_logs %}
                 <table class="min-w-full divide-y divide-gray-200 border-[1px] border-gray-300">
-                    <thead class="bg-gray-100 ">
+                    <thead class="bg-gray-700 text-gray-300">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">DEFECT ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Category</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Check Type</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Severity</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Description</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium uppercase">DEFECT ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium uppercase">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium uppercase">Check Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium uppercase">Severity</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium uppercase">Description</th>
                             
                             <!-- Show more fields only when form is closed -->
                             <template x-if="!openForm">
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Expected Outcome</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium uppercase">Expected Outcome</th>
                             </template>
                             <template x-if="!openForm">
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actual Outcome</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium uppercase">Actual Outcome</th>
                             </template>
                             <template x-if="!openForm">
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Count Per Document</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium uppercase">Count Per Document</th>
                             </template>
                             <template x-if="!openForm">
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Comments</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium uppercase">Comments</th>
                             </template>
                           
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Actions</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium uppercase">Actions</th>
                            
                             
                         </tr>
@@ -479,7 +479,7 @@
                                     selectedDefect.preview = null;
                                 "
 
-                                class="text-sm rounded-md py-2 px-3 my-2 hover:bg-blue-200 hover:text-blue-500 text-blue-300 hover:font-semibold cursor-pointer"
+                                class="text-sm rounded-md py-2 px-3 my-2 hover:bg-blue-200 hover:text-blue-500 text-blue-500 hover:font-semibold cursor-pointer"
                             >
                                 <i class="bi bi-pencil-fill"></i>
                             </button>
@@ -497,11 +497,12 @@
                          
                            
                         </tr>
+                       
                         {% endfor %}
                     </tbody>
                 </table>
                 {% else %}
-                <p class="text-gray-500">No defect logs available for this job.</p>
+                <p class="text-gray-500 flex justify-center items-center bg-gray-100 h-[300px]">No Defect Found.</p>
                 {% endif %}
             </div>
         </div>
@@ -519,7 +520,7 @@
             </button>
           <form method="POST" :action="`/uk-review/jobs/${defectToDelete}/delete_defect`" @submit="loading = true">
     {% csrf_token %}
-    <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
+    <button type="submit" class="cursor-pointer bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
         Delete
     </button>
 </form>

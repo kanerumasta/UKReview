@@ -166,6 +166,7 @@ def reports_view(request):
         "jobs_total": jobs_total,
         "provision_error_rate": provision_error_rate,
         "active_page":"reports",
+        "active_sub_page":"production-reports",
          "defect_categories": defect_categories,
     "defect_options": defect_options,
     "defect_options_grand_total":grand_total,
@@ -590,6 +591,6 @@ def report_generation_detail(request, id):
 
 #UK Review QA Reports
 def qa_report_index(request):
-    clusters = QACluster.objects.all()
-    context = {"clusters":clusters}
+    clusters = QACluster.objects.all().order_by('-created_at')
+    context = {"clusters":clusters,"active_page":'reports', "active_sub_page":'qa-reports', 'title':'QA Reports', 'is_initial_title':True}
     return render(request, "reports/qa_index.html", context=context)

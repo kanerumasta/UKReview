@@ -1,0 +1,60 @@
+{% extends "qa_base.html" %}
+
+{% block tab_content %}
+<div class="p-6 overflow-x-auto" >
+    
+    
+    <table class="min-w-full shadow-md divide-y divide-gray-200 rounded-lg">
+        <!-- Table headers and content same as before -->
+        <thead class="bg-gray-700 text-white">
+            <th class="px-6 py-4 text-left text-xs font-semibold uppercase">Enactment</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Provision</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Filename</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Version Date</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Allocation</th>
+             <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Review Outcome</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Document Rating</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Lowest Severity Level</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold uppercase">Provision Error Count</th>
+          
+           
+      
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for enactment, jobs in grouped_logs.items %}
+                {% for job in jobs %}
+                <tr class="">
+                    {% if forloop.first %}
+                        <td class="border border-gray-200 px-2 py-1" rowspan="{{ jobs|length }}">
+                            {{ job.provision.enactment.title }}
+                        </td>
+                     
+                    {% endif %}
+                    <td class="px-6 py-4 text-gray-600 border border-gray-200">{{job.provision.title}}</td>
+                    <td class="px-6 py-4 text-gray-600 border border-gray-200">{{job.filename|default:'-'}}</td>
+                    <td class="px-6 py-4 text-gray-600 border border-gray-200">{{job.date|date:"m/d/Y"}}</td>
+                    <td class="px-6 py-4 text-gray-600 border border-gray-200">{{job.user.logged_by|default:job.user.username}}</td>
+                    <td class="px-6 py-4 font-semibold text-gray-600 border border-gray-200 capitalize whitespace-nowrap 
+                        {%if job.review_outcome.lower == 'defect found'  %}
+                            bg-red-50 text-red-400
+                        {% else %}
+                            bg-green-100 text-green-800
+                        {% endif %}
+
+                    ">{{job.review_outcome}}</td>
+                    <td class="px-6 py-4 text-gray-600 border border-gray-200 capitalize">{{job.document_rating}}</td>
+                    <td class="px-6 py-4 text-gray-600 border border-gray-200 capitalize">{{job.lowest_severity_level|default:0 }}</td>
+                    <td class="px-6 py-4 text-gray-600 border border-gray-200 capitalize">{{job.defect_logs.count }}</td>
+      
+                </tr>
+                {% endfor%}
+            {%endfor%}
+        </tbody>
+    </table>
+    
+</div>
+    
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+{% endblock %}

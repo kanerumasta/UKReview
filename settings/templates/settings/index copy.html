@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if messages %}
+<div id="message-container" class="w-full px-6 mt-6">
+    {% for message in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-black
+                {% if message.tags == 'error' %}bg-red-300{% endif %}
+                {% if message.tags == 'success' %}bg-green-300{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    // Auto-hide messages after 3 seconds (3000ms)
+    setTimeout(() => {
+        const container = document.getElementById('message-container');
+        if (container) {
+            container.style.transition = "opacity 0.5s";
+            container.style.opacity = 0;
+            setTimeout(() => container.remove(), 500); // remove after fade out
+        }
+    }, 3000);
+</script>
+{% endif %}
+<div class="p-6 mx-auto" x-data="{ jobCountEditMode: false,  quotaEditMode: false, parttimeQuotaEditMode: false  }">
+  
+  <!-- Page Title -->
+  <h1 class="text-2xl font-bold mb-6 text-gray-900">Settings</h1>
+
+  <!-- Max Job Count -->
+  <div class="mb-6 flex items-center gap-4">
+    <span class="font-semibold text-gray-700">Max Job Count Per User:</span>
+    <form method="POST" action="{% url 'edit_job_count' %}" class="flex items-center gap-2">
+      {% csrf_token %}
+      <input 
+        x-ref="jobCountInput"
+        name="new_count"
+        :disabled="!jobCountEditMode"
+        type="number"
+        value="{{ settings.max_job_count }}"
+        class="w-24 text-center text-gray-700 text-lg p-2 rounded border border-gray-300 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 disabled:bg-gray-100 disabled:text-gray-500"
+      >
+
+      <!-- Edit Button -->
+      <button type="button" x-show="!jobCountEditMode" @click="jobCountEditMode = true; $nextTick(() => $refs.jobCountInput.focus())" class="text-gray-500 hover:text-blue-600 transition">
+        <i class="bi bi-pencil-square text-xl"></i>
+      </button>
+
+      <!-- Save / Cancel Buttons -->
+      <button x-show="jobCountEditMode" type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">Save</button>
+      <button x-show="jobCountEditMode" @click="jobCountEditMode=false" type="button" class="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400 transition">Cancel</button>
+    </form>
+
+  </div>
+
+    <!-- Quota -->
+  <div class="mb-6 flex items-center gap-4">
+    <span class="font-semibold text-gray-700">Quota (Hourly):</span>
+    <form method="POST" action="{% url 'edit_quota' %}" class="flex items-center gap-2">
+      {% csrf_token %}
+      <input 
+        x-ref="quotaInput"
+        name="new_quota"
+        :disabled="!quotaEditMode"
+        type="number"
+        value="{{ settings.quota }}"
+        class="w-24 text-center text-gray-700 text-lg p-2 rounded border border-gray-300 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 disabled:bg-gray-100 disabled:text-gray-500"
+      >
+
+      <!-- Edit Button -->
+      <button type="button" x-show="!quotaEditMode" @click="quotaEditMode = true; $nextTick(() => $refs.quotaInput.focus())" class="text-gray-500 hover:text-blue-600 transition">
+        <i class="bi bi-pencil-square text-xl"></i>
+      </button>
+
+      <!-- Save / Cancel Buttons -->
+      <button x-show="quotaEditMode" type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">Save</button>
+      <button x-show="quotaEditMode" @click="quotaEditMode=false" type="button" class="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400 transition">Cancel</button>
+    </form>
+  </div>
+
+    <!-- Part-time Quota -->
+  <!-- <div class="mb-6 flex items-center gap-4">
+    <span class="font-semibold text-gray-700">Part-time Quota:</span>
+    <form method="POST" action="{% url 'edit_parttime_quota' %}" class="flex items-center gap-2">
+      {% csrf_token %}
+      <input 
+        x-ref="parttimeQuotaInput"
+        name="new_parttime_quota"
+        :disabled="!parttimeQuotaEditMode"
+        type="number"
+        value="{{ settings.parttime_quota }}"
+        class="w-24 text-center text-gray-700 text-lg p-2 rounded border border-gray-300 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 disabled:bg-gray-100 disabled:text-gray-500"
+      > -->
+
+      <!-- Edit Button -->
+      <!-- <button type="button" x-show="!parttimeQuotaEditMode" @click="parttimeQuotaEditMode = true; $nextTick(() => $refs.parttimeQuotaInput.focus())" class="text-gray-500 hover:text-blue-600 transition">
+        <i class="bi bi-pencil-square text-xl"></i>
+      </button> -->
+
+      <!-- Save / Cancel Buttons -->
+      <button x-show="parttimeQuotaEditMode" type="submit" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">Save</button>
+      <!-- <button x-show="parttimeQuotaEditMode" @click="parttimeQuotaEditMode=false" type="button" class="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400 transition">Cancel</button>
+    </form>
+  </div> -->
+
+
+
+  <!-- Defect Categories Header -->
+  <div class="flex justify-between items-center mb-4">
+    <h4 class="text-lg font-semibold text-gray-800">Defect Options</h4>
+    <a href="{% url 'defect_category_create' %}" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">+ Add Category</a>
+  </div>
+
+  <!-- Categories Table -->
+  <div class="overflow-x-auto rounded-lg shadow-sm">
+    <table class="min-w-full bg-white divide-y divide-gray-200 text-sm">
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="px-4 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Name</th>
+          <th class="px-4 py-2 text-left font-medium text-gray-700 uppercase tracking-wider">Options - Severity</th>
+          <th class="px-4 py-2 text-center font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for category in categories %}
+        <tr class="hover:bg-gray-50 transition">
+          <td class="px-4 py-2 text-gray-700 font-medium">{{ category.name }}</td>
+          <td class="px-4 py-2">
+            <ul class="space-y-1">
+              {% for option in category.options.all %}
+              <li class="flex items-center gap-2">
+                <span>{{ option.check_type }}</span>
+                <!-- Severity Badge -->
+                <span class="{% if option.severity_level == 4 %}bg-red-500{% elif option.severity_level == 3 %}bg-orange-400{% elif option.severity_level == 2 %}bg-yellow-400{% else %}bg-blue-400{% endif %} text-white text-xs font-semibold px-2 py-0.5 rounded">
+                  {{ option.severity_level }}
+                </span>
+              </li>
+              {% endfor %}
+            </ul>
+          </td>
+          <td class="px-4 py-2 text-center">
+            <a href="{% url 'defect_category_update' category.id %}" class="text-blue-500 hover:underline mr-2">Edit</a>
+            <a href="{% url 'defect_category_delete' category.id %}" class="text-red-500 hover:underline">Delete</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="px-4 py-4 text-gray-500 text-center">No categories available.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+    /* Loader animation */
+    .loader {
+        border-width: 4px;
+    }
+@keyframes progressBar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-progress {
+  width: 50%;
+  animation: progressBar 1.5s linear infinite;
+}
+</style>
+{% endblock %}
+
+

@@ -1,0 +1,53 @@
+{% extends "base.html"%}
+
+{% block content %}
+     
+ <!-- Tabs -->
+    <div class="px-6 mt-3  flex justify-between items-center">
+    <nav class="flex h-[60px]">
+        <a href="?tab=project"
+           class="h-full flex items-center px-6 border-b-3
+           {% if active_tab == 'project' %}border-blue-400 text-blue-500 font-bold{% else %}border-gray-200 text-gray-400 font-semibold{% endif %}">
+            Project
+        </a>
+
+        <a href="?tab=error-log"
+           class="h-full flex items-center px-6 border-b-3
+           {% if active_tab == 'error-log' %}border-blue-400 text-blue-500 font-bold{% else %}border-gray-200 text-gray-400 font-semibold{% endif %}">
+            Error Log
+        </a>
+
+        <a href="?tab=defect-log"
+           class="h-full flex items-center px-6 border-b-3
+           {% if active_tab == 'defect-log' %}border-blue-400 text-blue-500 font-bold{% else %}border-gray-200 text-gray-400 font-semibold{% endif %}">
+            Defect Log
+        </a>
+
+        <a href="?tab=enactments"
+           class="h-full flex items-center px-6 border-b-3
+           {% if active_tab == 'enactments' %}border-blue-400 text-blue-500 font-bold{% else %}border-gray-200 text-gray-400 font-semibold{% endif %}">
+            Enactments
+        </a>
+    </nav>
+    {% if active_tab == 'error-log'%}
+    <div class="flex gap-2">
+        <form method='POST' action="{% url 'recompute' %}">
+            <input type="hidden" name="cluster_id" value={{cluster.id}}  />
+            <button type="submit" class="rounded border-2 border-green-500 text-green-600 font-semibold cursor-pointer px-4 py-2">Request to Recompute</button>
+        </form>
+        <button class="rounded border-2 border-red-300 text-red-400 font-semibold px-4 py-2 cursor-pointer">Rework</button>
+        <button class="rounded bg-blue-600 px-4 py-2 text-white"><i class="bi bi-file-earmark-arrow-down"></i> Download</button>
+    </div>
+    {% endif %}
+
+    {% if batch %}
+        <h1><span class="font-semibold text-gray-500">Batch: </span><span class="font-semibold text-blue-400">{{batch}}</span></h1>
+    {% endif %}
+</div>
+
+  <!-- Tab Content -->
+    {% block tab_content %}{% endblock %}
+
+   
+
+{% endblock %}

@@ -1,60 +1,199 @@
-{% extends "base.html" %}
+{% extends "qa_base.html" %}
 
-{% block content %}
-    <div class="p-6">
-        <h3 class="font-semibold mb-6">2025 MDE Quick Quality Assurance Report (QQAR): LNKIL</h3>
-        <div class="mb-3 border-2 p-8 rounded-lg border-gray-400 space-y-3 max-w-[700px]">
+{% block tab_content %}
+<div class="p-6">
+    <!-- Header Section -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">2025 MDE Quick Quality Assurance Report (QQAR)</h1>
+        <div class="flex items-center gap-4">
             <div>
-                <strong>Project Name:</strong>
-                <span>LNUK Legislation - UK Review</span>
+                <span class="px-4 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">Project: LNKIL</span>
+                <span class="px-4 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">Cluster: {{cluster.name}}</span>
             </div>
-            <div>
-                <strong>Project Code:</strong>
-                <span>LNKCL</span>
-            </div>
-            <div>
-                <strong>Business Unit:</strong>
-                <span>Legal</span>
-            </div>
-            <div>
-                <strong>Client Onset:</strong>
-                <span>LexisNexis UK</span>
-            </div>
-            <div>
-                <strong>Total Sample Size:</strong>
-                <span>{{total_sample_size}}</span>
-            </div>
-            <div>
-                <strong># of Errors:</strong>
-                <span>{{error_count}}</span>
-            </div>
-            <div>
-                <strong>AQ:</strong>
-                <span>{{aq}}</span>
-            </div>
-            <div>
-                <strong>Audit Result:</strong>
-                <span>{{audit_result}}</span>
-            </div>
-            <div>
-                <strong>Audit Schedule:</strong>
-                <span>{{aq}}</span>
-            </div>
-            <div>
-                <strong>PM:</strong>
-                <span>Jaime Sapilan Jr.</span>
-            </div>
-            <div>
-                <strong>POC:</strong>
-                <span>N/A</span>
-            </div>
-            <div>
-                <strong>PIC:</strong>
-                <span>Divina Pino / Frenante Peralta</span>
+            <span class="text-gray-600">
+                <i class="fas fa-calendar-alt mr-1"></i>
+                {{ current_date|date:"F j, Y" }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Project Overview Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Project Info Card -->
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+            <h3 class="font-semibold text-gray-700 mb-4 pb-2 border-b">Project Information</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Project Name:</span>
+                    <span class="font-medium">LNUK Legislation - UK Review</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Project Code:</span>
+                    <span class="font-medium text-blue-600">LNKCL</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Business Unit:</span>
+                    <span class="font-medium">Legal</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Client:</span>
+                    <span class="font-medium">LexisNexis UK</span>
+                </div>
             </div>
         </div>
-        <p class="text-sm text-blue-800 mb-2">*Average Quality (AQ) requirement in % (internal): 100%</p>
-        <p class="italic text-sm">Quality Rating = [(total no. of profiles - no. of profiles with errors) / total no. of profiles] x 100</p>
+
+        <!-- Quality Metrics Card -->
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+            <h3 class="font-semibold text-gray-700 mb-4 pb-2 border-b">Quality Metrics</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">Total Sample Size:</span>
+                    <span class="text-xl font-bold text-gray-800">{{ total_sample_size }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600"># of Errors:</span>
+                    <span class="text-xl font-bold text-red-500">{{ error_count }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">Average Quality (AQ):</span>
+                    <span class="text-xl font-bold {% if aq >= 95 %}text-green-600{% else %}text-orange-500{% endif %}">
+                        {{ aq }}%
+                    </span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Audit Result:</span>
+                    <span class="font-medium {% if audit_result == 'Pass' %}text-green-600{% else %}text-red-500{% endif %}">
+                        {{ audit_result }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team & Schedule Card -->
+        <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+            <h3 class="font-semibold text-gray-700 mb-4 pb-2 border-b">Team & Schedule</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Project Manager:</span>
+                    <span class="font-medium">Jaime Sapilan Jr.</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">POC:</span>
+                    <span class="font-medium text-gray-400">N/A</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">PIC:</span>
+                    <span class="font-medium">Divina Pino / Frenante Peralta</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Audit Schedule:</span>
+                    <span class="font-medium">{{ audit_schedule|default:"Q4 2025" }}</span>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- Quality Status Indicator -->
+    <div class="mb-8">
+        <div class="bg-gradient-to-r from-blue-50 to-gray-50 border border-gray-200 rounded-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-700">Quality Performance</h3>
+                <span class="px-3 py-1 rounded-full text-sm font-medium 
+                    {% if aq >= 95 %}bg-green-100 text-green-800
+                    {% elif aq >= 85 %}bg-yellow-100 text-yellow-800
+                    {% else %}bg-red-100 text-red-800{% endif %}">
+                    {% if aq >= 95 %}Excellent
+                    {% elif aq >= 85 %}Good
+                    {% else %}Needs Improvement{% endif %}
+                </span>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <div class="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>Quality Score</span>
+                    <span>{{ aq }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div class="h-2.5 rounded-full 
+                        {% if aq >= 95 %}bg-green-500
+                        {% elif aq >= 85 %}bg-yellow-500
+                        {% else %}bg-red-500{% endif %}" 
+                        style="width: {{ aq }}%">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Target Indicator -->
+            <div class="flex items-center text-sm text-gray-600">
+                <div class="flex items-center mr-4">
+                    <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <span>Target: 100%</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                    <span>Current: {{ aq }}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold text-gray-800">{{ total_sample_size }}</div>
+            <div class="text-sm text-gray-600 mt-1">Total Samples</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold text-green-600">{{ passed_samples|default:0 }}</div>
+            <div class="text-sm text-gray-600 mt-1">Passed</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold text-red-600">{{ error_count }}</div>
+            <div class="text-sm text-gray-600 mt-1">Errors</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-4 text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ dispute_count|default:0 }}</div>
+            <div class="text-sm text-gray-600 mt-1">Disputes</div>
+        </div>
+    </div>
+
+    <!-- Notes & Formula -->
+    <div class="border-t pt-6">
+        <div class="flex flex-col md:flex-row gap-6">
+            <div class="md:w-1/2">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-blue-800 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>Quality Requirement
+                    </h4>
+                    <p class="text-sm text-blue-700">
+                        *Average Quality (AQ) requirement in % (internal): <strong>100%</strong>
+                    </p>
+                </div>
+            </div>
+            <div class="md:w-1/2">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-calculator mr-2"></i>Quality Formula
+                    </h4>
+                    <p class="text-sm text-gray-600 italic">
+                        Quality Rating = [(total no. of profiles - no. of profiles with errors) / total no. of profiles] × 100
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Add some subtle animations */
+    .hover-lift {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .hover-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+</style>
 
 {% endblock %}

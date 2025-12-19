@@ -18,6 +18,9 @@ class QACluster(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, blank=True)
 
+    sampling_type = models.CharField(max_length=100, null=True, blank=True)
+    sample_size = models.IntegerField(null=True, blank=True)
+
     completed_at = models.DateTimeField(null=True, blank=True)
 
     final_status = models.CharField(max_length=50, choices=[
@@ -37,16 +40,35 @@ class QACluster(models.Model):
         ('recompute', 'RECOMPUTE'),
         ('rework', 'REWORK'),
         ('complete', 'COMPLETE'),
-    ], null=True, blank=True)
+        ('pending', 'PENDING')
+    ],default='pending', null=True, blank=True)
+
+    # def save(self, *args, **kwargs):
+    #     creating = self.pk is None
+    #     super().save(*args, **kwargs)  # save first to get a PK
+
+    #     if creating:
+    #         now = datetime.now()
+    #         self.name = f"LNKIL_{now.strftime('%Y%m%d')}_{self.pk:03d}_Counter{self.counter}"
+    #         super().save(update_fields=['name'])
+
+    def generate_name(self):
+        date_str = self.created_at.strftime('%Y%m%d')
+        return f"LNKIL_{date_str}_{self.pk:03d}_Counter{self.counter}"
 
     def save(self, *args, **kwargs):
         creating = self.pk is None
-        super().save(*args, **kwargs)  # save first to get a PK
+        super().save(*args, **kwargs)
 
-        if creating:
-            now = datetime.now()
-            self.name = f"LNKIL_{now.strftime('%Y%m%d')}_{self.pk:03d}_Counter{self.counter}"
+        if creating and not self.name:
+            self.name = self.generate_name()
             super().save(update_fields=['name'])
+
+    def increment_counter(self):
+        """Call this when you want to bump the counter and rename."""
+        self.counter += 1
+        self.name = self.generate_name()
+        self.save(update_fields=['counter', 'name'])
 
 
 class QAJob(models.Model):
@@ -66,6 +88,7 @@ class QAJob(models.Model):
     qa_cluster = models.ForeignKey(QACluster, on_delete=models.CASCADE, related_name='qa_jobs')
     qa_user = models.ForeignKey(USER, on_delete=models.CASCADE,null=True, blank=True)
     job = models.OneToOneField(ProvisionJob, on_delete=models.CASCADE, related_name='qa_job')
+    job_error_count = models.PositiveIntegerField(default=0, null=True, blank=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='new')
     is_selected = models.BooleanField(default=False)
     outcome = models.CharField(max_length=50, choices=[

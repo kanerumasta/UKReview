@@ -1,41 +1,117 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="p-6">
-  <h1 class="text-xl font-bold mb-4">
-    {% if category %}Edit Category{% else %}New Category{% endif %}
-  </h1>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
+<div class="max-w-4xl mx-auto p-4 md:p-6">
+    <!-- Back navigation -->
+    <div class="mb-6">
+        <a href="{% url 'settings_index' %}" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors">
+            <i class="bi bi-arrow-left"></i>
+            Back to Settings
+        </a>
+    </div>
 
-    <h2 class="font-semibold mt-4">Options</h2>
-    {{ formset.management_form }}
-    <table class="table-auto border w-full mt-2">
-      <thead>
-        <tr class="bg-gray-100">
-          <th class="px-4 py-2">Check Type</th>
-          <th class="px-4 py-2">Severity Level</th>
-          <th class="px-4 py-2">Delete?</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for form in formset %}
-        <tr>
-          {# Render hidden fields (id, etc.) #}
-          {% for hidden in form.hidden_fields %}
-            {{ hidden }}
-          {% endfor %}
+    <!-- Form Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8">
+        <div class="mb-6">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="p-2 {% if category %}bg-blue-100{% else %}bg-emerald-100{% endif %} rounded-lg">
+                    <i class="bi {% if category %}bi-pencil-square{% else %}bi-plus-lg{% endif %} text-lg
+                              {% if category %}text-blue-600{% else %}text-emerald-600{% endif %}"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900">
+                    {% if category %}Edit Category{% else %}Create New Category{% endif %}
+                </h1>
+            </div>
+            <p class="text-gray-600">Define defect category and its options with severity levels</p>
+        </div>
 
-          <td class="px-4 py-2">{{ form.check_type }}</td>
-          <td class="px-4 py-2">{{ form.severity_level }}</td>
-          <td class="px-4 py-2">{{ form.DELETE }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Category Name -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Category Name
+                </label>
+                {{ form.name }}
+            </div>
 
-    <button type="submit" class="mt-4 bg-green-500 text-white px-4 py-2 rounded">Save</button>
-    <a href="{% url 'settings_index' %}" class="ml-2 text-gray-600">Cancel</a>
-  </form>
+            <!-- Options Section -->
+            <div class="border-t pt-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">Defect Options</h2>
+                    <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                        {{ formset.forms|length }} option{{ formset.forms|length|pluralize }}
+                    </span>
+                </div>
+                
+                {{ formset.management_form }}
+                
+                <div class="space-y-4">
+                    {% for form in formset %}
+                    <div class="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+                        {% for hidden in form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Check Type
+                                </label>
+                                {{ form.check_type }}
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Severity Level
+                                </label>
+                                {{ form.severity_level }}
+                            </div>
+                            
+                            <div class="flex items-end">
+                                <div class="flex items-center gap-2">
+                                    {{ form.DELETE }}
+                                    <label class="text-sm text-red-600 cursor-pointer hover:text-red-700">
+                                        Remove Option
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex items-center gap-4 pt-6 border-t">
+                <button type="submit" 
+                        class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-sm flex items-center gap-2">
+                    <i class="bi bi-check-lg"></i>
+                    Save Changes
+                </button>
+                <a href="{% url 'settings_index' %}" 
+                   class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 hover:text-gray-900 transition-colors">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
 </div>
+
+<style>
+    /* Style form inputs */
+    input[type="text"], input[type="number"], select {
+        @apply w-full px-4 py-2 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200;
+    }
+    
+    /* Style delete checkbox */
+    input[type="checkbox"] {
+        @apply w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500;
+    }
+    
+    /* Remove default Django form paragraph styling */
+    form p {
+        @apply mb-0;
+    }
+</style>
 {% endblock %}

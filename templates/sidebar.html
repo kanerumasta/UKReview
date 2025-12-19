@@ -8,7 +8,7 @@
 			<a href="{% url 'dashboard' %}" 
 			   class="flex items-center gap-2 p-3 
 					  {% if active_page == 'dashboard' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-				<i class="bi bi-grid-fill" ></i>Dashboard
+				<i class="bi bi-grid-fill {% if active_page == 'dashboard' %} text-blue-400{% else %}text-gray-500{% endif %}" ></i>Dashboard
 			</a>
 		</li>
        
@@ -17,7 +17,7 @@
             <a href="{% url 'dropzone_index' %}" 
                class="flex items-center gap-2 p-3 
                       {% if active_page == 'dropzone' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-               <i class="bi bi-dropbox"></i>Dropzone
+               <i class="bi bi-dropbox {% if active_page == 'dropzone' %} text-blue-400{% else %}text-gray-500{% endif %}"></i>Dropzone
             </a>
         </li>
         {% endif %}
@@ -25,7 +25,7 @@
             <a href="{% url 'jobs' %}" 
                class="flex items-center gap-2 p-3 
                       {% if active_page == 'jobs' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-               <i class="bi bi-person-lines-fill"></i>Jobs
+               <i class="bi bi-person-lines-fill {% if active_page == 'jobs' %} text-blue-400{% else %}text-gray-500{% endif %}"></i>Jobs
             </a>
         </li>
         {% if user.role == "manager" %}
@@ -33,7 +33,7 @@
             <a href="{% url 'allocations_index' %}" 
                class="flex items-center gap-2 p-3 
                       {% if active_page == 'allocations' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-               <i class="bi bi-card-checklist"></i>Allocations
+               <i class="bi bi-card-checklist {% if active_page == 'allocations' %} text-blue-400{% else %}text-gray-500{% endif %}"></i>Allocations
             </a>
         </li>
        {% endif %}
@@ -42,32 +42,27 @@
             <a href="{% url 'productivity_index' %}" 
                class="flex items-center gap-2 p-3 
                       {% if active_page == 'productivity' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-                <i class="bi bi-bar-chart-fill" ></i> Productivity
+                <i class="bi bi-bar-chart-fill {% if active_page == 'productivity' %} text-blue-400{% else %}text-gray-500{% endif %}" ></i> Productivity
             </a>
         </li>
                {% endif %}
-                   
-        <li class="duration-150 cursor-pointer">
-                <a href="{% url 'reports_index' %}" 
-                class="flex items-center gap-2 p-3 
-                        {% if active_page == 'reports' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-                    <i class="bi bi-clipboard-data-fill"></i> Reports
-                </a>
-            </li>
+
             <li class="duration-150 cursor-pointer ">
-                <a href="{% url 'qa-index' %}" 
-                class="flex items-center gap-2 p-3 
-                        {% if active_page == 'qa' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-                   <i class="bi bi-person-check-fill"></i> QA
-                </a>
-            </li>
+            <a href="{% url 'qa-index' %}" 
+               class="flex items-center gap-2 p-3 
+                      {% if active_page == 'qa' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
+                <i class="bi bi-person-fill-check {% if active_page == 'qa' %} text-blue-400{% else %}text-gray-500{% endif %}" ></i> QA
+            </a>
+        </li>
+                   
+
                   
              {% if user.role == "manager" %}
         <li class="duration-150 cursor-pointer ">
                 <a href="{% url 'settings_index' %}" 
                 class="flex items-center gap-2 p-3 
                         {% if active_page == 'settings' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}">
-                    <i class="bi bi-gear-fill" ></i> Settings
+                    <i class="bi bi-gear-fill {% if active_page == 'settings' %} text-blue-400{% else %}text-gray-500{% endif %}" ></i> Settings
                 </a>
             </li>
 
@@ -75,12 +70,13 @@
                <li class="duration-150 cursor-pointer">
     <div 
         data-accordion-btn
+        data-accordion-page="reports"
         class="flex items-center justify-between p-3 
-               text-gray-500 hover:bg-white/5 rounded cursor-pointer"
+             hover:bg-white/5 rounded cursor-pointer  {% if active_page == 'reports' %} text-gray-200 bg-white/5{% else %}text-gray-500{% endif %}"
     >
-        <div class="flex items-center gap-2">
-            <i class="bi bi-person-check-fill"></i>
-            <span>QA</span>
+        <div class="flex items-center gap-2 ">
+           <i class="bi bi-clipboard-data-fill {% if active_page == 'reports' %} text-blue-400{% else %}text-gray-500{% endif %}"></i>
+            <span>Reports</span>
         </div>
 
         <i class="bi bi-chevron-right accordion-icon transition-transform duration-300"></i>
@@ -88,28 +84,22 @@
 
     <!-- Collapsible Content -->
     <ul 
-        class="overflow-hidden max-h-0 transition-all duration-300"
+        class="overflow-hidden max-h-0 transition-all pl-5 pt-3 duration-300"
     >
         <li>
-            <a href="{% url 'qa-index' %}" 
-               class="block pl-10 pr-3 py-2 text-gray-400 hover:text-gray-200 hover:bg-white/5">
-                For Processing
+            <a href="{% url 'reports_index' %}" 
+               class="block border-l  pl-6 pr-3 py-3 hover:bg-white/5 {% if active_sub_page == 'production-reports' %} text-blue-400 border-blue-400  {% else %} text-gray-500 border-gray-600 {% endif %}">
+                Production Reports
             </a>
         </li>
 
         <li>
-            <a href="/" 
-               class="block pl-10 pr-3 py-2 text-gray-400 hover:text-gray-200 hover:bg-white/5">
-                Completed
+            <a href="{% url 'qa-reports-index' %}"
+               class="block border-l  pl-6 pr-3 py-3 hover:bg-white/5 {% if active_sub_page == 'qa-reports' %} text-blue-400 border-blue-400  {% else %} text-gray-500 border-gray-600 {% endif %}">
+                QA Reports
             </a>
         </li>
 
-        <li>
-            <a href="/"
-               class="block pl-10 pr-3 py-2 text-gray-400 hover:text-gray-200 hover:bg-white/5">
-                My History
-            </a>
-        </li>
     </ul>
 </li>
 
@@ -122,23 +112,49 @@
         </a>
     </div>
 </div>
-
 <script>
-    document.addEventListener("DOMContentLoaded", () => {
-        document.querySelectorAll("[data-accordion-btn]").forEach(button => {
-            button.addEventListener("click", () => {
-                const content = button.nextElementSibling;
-                const icon = button.querySelector(".accordion-icon");
+document.addEventListener("DOMContentLoaded", () => {
+    const activePage = "{{ active_page }}";
 
-                if (content.style.maxHeight) {
-                    content.style.maxHeight = null;
-                    icon.classList.remove("rotate-90");
-                } else {
-                    content.style.maxHeight = content.scrollHeight + "px";
-                    icon.classList.add("rotate-90");
-                }
+    document.querySelectorAll("[data-accordion-btn]").forEach((button, index) => {
+        const content = button.nextElementSibling;
+        const icon = button.querySelector(".accordion-icon");
+        const storageKey = "accordion_" + index;
+
+        const shouldOpen =
+            localStorage.getItem(storageKey) === "true" ||
+            button.dataset.accordionPage === activePage;
+
+        if (shouldOpen) {
+            content.classList.add("no-transition");
+            icon.classList.add("no-transition");
+
+            content.style.maxHeight = content.scrollHeight + "px";
+            icon.classList.add("rotate-90");
+
+            localStorage.setItem(storageKey, "true");
+
+            // ✅ Re-enable animations after first paint
+            requestAnimationFrame(() => {
+                content.classList.remove("no-transition");
+                icon.classList.remove("no-transition");
             });
+        }
+
+        button.addEventListener("click", () => {
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null;
+                icon.classList.remove("rotate-90");
+                localStorage.setItem(storageKey, "false");
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+                icon.classList.add("rotate-90");
+                localStorage.setItem(storageKey, "true");
+            }
         });
     });
+});
 </script>
+
+
 
