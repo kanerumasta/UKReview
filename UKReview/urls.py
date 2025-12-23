@@ -15,10 +15,12 @@ from allocations import views as allocations_views
 from productivity import views as productivity_views
 from api import views as api_views
 from qa import views as qa_views
+from notifications.views import test
 
 
 urlpatterns = [
     path('',ukreview_home, name="dashboard"),
+    path('test_notif', test),
    
 
     #jobs
@@ -75,7 +77,7 @@ urlpatterns = [
     #QA
     path("qa/", qa_views.index, name="qa-index"),
     path("qa/qa-loading/", qa_views.qa_loading, name="qa-loading"),
-    path("qa/recompute/", qa_views.recompute, name="recompute"),
+    path("qa/recompute/", qa_views.recompute, name="recompute"), 
     
     path("qa/load-to-qa/<int:batch_id>/", qa_views.load_to_qa, name="load-to-qa"),
     path("qa/add-dispute", qa_views.add_dispute, name="qa-add-dispute"),
