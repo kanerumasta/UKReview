@@ -17,9 +17,12 @@
                     <option value="">All batches</option>
                     {% for batch in batches %}
                         <!-- value must be the batch id so the view can parse it -->
-                        <option value="{{ batch.id }}" {% if selected_batch and selected_batch|stringformat:"s" == batch.id|stringformat:"s" %}selected{% endif %}>
-                            {{ batch.name }}
-                        </option>
+                        <option value="{{ batch.id }}"
+                        {% if selected_batch|stringformat:"s" == batch.id|stringformat:"s" %}
+                            selected
+                        {% endif %}>
+                        {{ batch.name }}
+                    </option>
                     {% endfor %}
                 </select>
             </div>

@@ -1358,7 +1358,8 @@ def export_all_productivity(request):
         try:
             top = header_row_idx
             bottom = last_summary_row
-            ws_sum.auto_filter.ref = f"A{top}:I{bottom}"
+            last_col_letter = get_column_letter(len(sum_headers))
+            ws_sum.auto_filter.ref = f"A{top}:{last_col_letter}{bottom}"
             ws_sum.freeze_panes = ws_sum[f"A{top + 1}"]
 
             # Column widths heuristic
