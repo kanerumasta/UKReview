@@ -1386,22 +1386,41 @@ def export_all_productivity(request):
     except Exception as e:
         print("Summary sheet creation failed:", e)
 
-    print('user summares:', user_summaries)
+
+
+    # --- Compiled Data sheet (all user jobs together) ---
+    # print('user summares:', user_summaries)
+    DATE_FMT = "mmm d, yyyy h:mm AM/PM"
 
     ws_compiled = wb.create_sheet("Compiled Data")
     compiled_headers = [
-    "User ID", 
-    "Full Name",
-    "Batch",
-    "Provision Ref(s)",
-    "Enactment Citation",
-    "Start Date",
-    "End Date",
-    "Duration (Minutes)",
-    "Status",
+        "User ID", 
+        "Full Name",
+        "Batch",
+        "Provision Ref(s)",
+        "Enactment Citation",
+        "Start Date",
+        "End Date",
+        "Duration (Minutes)",
+        "Status",
     ]
-    ws_compiled.append(compiled_headers)
-    #Compiled user detailed sheets
+
+    # Style headers to match other sheets
+    for col_idx, h in enumerate(compiled_headers, 1):
+        c = ws_compiled.cell(row=1, column=col_idx, value=h)
+        c.font = header_font
+        c.fill = header_fill
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = border
+    
+    # Auto-fit column widths
+    min_w, max_w = 10, 60
+    for col_idx, h in enumerate(compiled_headers, 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = len(str(h))
+        ws_compiled.column_dimensions[col_letter].width = min(max(max_len + 2, min_w), max_w)
+
+    # Compiled user detailed sheets
     for user in user_summaries:
         for job in user['jobs_qs']:
             try:
@@ -1416,6 +1435,7 @@ def export_all_productivity(request):
                 start_dt = make_naive_for_excel(job.start_date)
                 end_dt = make_naive_for_excel(job.end_date)
 
+
                 new_row = [
                     user['id'],
                     user['full_name'],
@@ -1427,11 +1447,75 @@ def export_all_productivity(request):
                     float(job.total_time_minutes or 0),
                     job.status or "",
                 ]
-                ws_compiled.append(new_row)
+                ws_compiled.append(new_row) # ---- Apply Excel datetime format ----
+                row_idx = ws_compiled.max_row
+
+                start_cell = ws_compiled.cell(row=row_idx, column=6)
+                end_cell = ws_compiled.cell(row=row_idx, column=7)
+
+                if start_cell.value:
+                    start_cell.number_format = DATE_FMT
+
+                if end_cell.value:
+                    end_cell.number_format = DATE_FMT
+
             except Exception as e:
-                print(f"Error writing compiled data row for user {user.get('id')}, job {getattr(job,'id','unknown')}: {e}")
+                print(
+                    f"Error writing compiled data row for user {user.get('id')}, "
+                    f"job {getattr(job,'id','unknown')}: {e}"
+                )
+    # -----------------------------
+    # VIEW / FILTER / WIDTH TWEAKS
+    # -----------------------------
+
+    try:
+        header_row_idx = 1
+        top = header_row_idx
+        bottom = ws_compiled.max_row
+
+        if bottom < top:
+            bottom = top
+
+        ws_compiled.auto_filter.ref = f"A{top}:I{bottom}"
+        ws_compiled.freeze_panes = ws_compiled[f"A{top + 1}"]
+
+        # Column widths heuristic
+        min_w, max_w = 10, 60
+
+        for col_idx in range(1, len(compiled_headers) + 1):
+            col_letter = get_column_letter(col_idx)
+            max_len = len(str(compiled_headers[col_idx - 1]))
+
+            for rr in range(top, bottom + 1):
+                try:
+                    val = ws_compiled.cell(rr, col_idx).value
+                    if val is None:
+                        continue
+
+                    # Date columns
+                    if col_idx in (6, 7):
+                        length = len("MMM D, YYYY HH:MM AM")
+                    else:
+                        length = len(str(val))
+
+                    if length > max_len:
+                        max_len = length
+
+                except Exception:
+                    pass
+
+            adjusted = min(max(max_len + 2, min_w), max_w)
+
+            try:
+                ws_compiled.column_dimensions[col_letter].width = adjusted
+            except Exception:
+                pass
+
+    except Exception as e:
+        print(f"View/widths/filters error for Compiled Data sheet: {e}")
 
 
+    
     
     # --- Per-user detailed sheets ---
     for info in user_summaries:
