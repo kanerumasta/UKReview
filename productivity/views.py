@@ -1254,6 +1254,8 @@ def export_all_productivity(request):
                 "average_jobs_per_hour": average_jobs_per_hour,
                 "productivity_ratio": productivity_ratio,
                 "jobs_qs": jobs_base.filter(status=status_filter),
+                "total_minutes": total_minutes,
+                "effort_per_provision": (total_minutes / total_jobs_completed) if total_jobs_completed > 0 else 0.0,
             })
         except Exception as e:
             print(f"Error preparing summary for user {getattr(user, 'id', 'unknown')}: {e}")
@@ -1286,7 +1288,7 @@ def export_all_productivity(request):
         sum_headers = [
             "ID", "Username", "Full Name", "Employment",
             "Total Jobs Assigned", "Total Jobs Completed",
-            "Total Hours", "Average Jobs Per Hour", "Productivity (%)"
+            "Total Hours", "Average Jobs Per Hour", "Productivity (%)","Total Minutes","Effort per Provision"
         ]
 
         # Optional title row (merged)
@@ -1329,6 +1331,14 @@ def export_all_productivity(request):
                 prod_cell = ws_sum.cell(r, 9, info["productivity_ratio"])
                 prod_cell.number_format = "0.00"
                 prod_cell.alignment = right_align
+
+                total_minutes_cell = ws_sum.cell(r, 10, info["total_minutes"])
+                total_minutes_cell.number_format = "0.00"
+                total_minutes_cell.alignment = right_align
+
+                effort_per_provision_cell = ws_sum.cell(r, 11, info["effort_per_provision"])
+                effort_per_provision_cell.number_format = "0.00"
+                effort_per_provision_cell.alignment = right_align
 
                 # Row styling: borders + zebra
                 for col in range(1, len(sum_headers) + 1):
@@ -1376,6 +1386,53 @@ def export_all_productivity(request):
     except Exception as e:
         print("Summary sheet creation failed:", e)
 
+    print('user summares:', user_summaries)
+
+    ws_compiled = wb.create_sheet("Compiled Data")
+    compiled_headers = [
+    "User ID", 
+    "Full Name",
+    "Batch",
+    "Provision Ref(s)",
+    "Enactment Citation",
+    "Start Date",
+    "End Date",
+    "Duration (Minutes)",
+    "Status",
+    ]
+    ws_compiled.append(compiled_headers)
+    #Compiled user detailed sheets
+    for user in user_summaries:
+        for job in user['jobs_qs']:
+            try:
+                batch_name = getattr(getattr(job, "provision", None), "batch", None)
+                batch_name = batch_name.name if batch_name else ""
+                provision_title = getattr(job.provision, "title", "") if job.provision else ""
+                citation = ""
+                if getattr(job, "enactment_assignment", None) and getattr(job.enactment_assignment, "enactment", None):
+                    citation = job.enactment_assignment.enactment.title or ""
+
+                # Start / End normalized
+                start_dt = make_naive_for_excel(job.start_date)
+                end_dt = make_naive_for_excel(job.end_date)
+
+                new_row = [
+                    user['id'],
+                    user['full_name'],
+                    batch_name,
+                    provision_title,
+                    citation,
+                    start_dt,
+                    end_dt,
+                    float(job.total_time_minutes or 0),
+                    job.status or "",
+                ]
+                ws_compiled.append(new_row)
+            except Exception as e:
+                print(f"Error writing compiled data row for user {user.get('id')}, job {getattr(job,'id','unknown')}: {e}")
+
+
+    
     # --- Per-user detailed sheets ---
     for info in user_summaries:
         try:
@@ -1499,9 +1556,12 @@ def export_all_productivity(request):
                     dur_range = f"H{data_start_row}:H{data_end_row}"
                     status_range = f"I{data_start_row}:I{data_end_row}"
 
+
+
                     # Expressions WITHOUT "=" for embedding
                     total_minutes_expr = f"SUM({dur_range})"
                     completed_jobs_expr = f'COUNTIF({status_range}, "completed")'
+                    effort_per_provision_expr = f"IF({total_minutes_expr}=0, 0, {total_minutes_expr}/100)"
 
                     # Your exact formula:  completed_jobs / (total_minutes / 60)
                     avg_expr = (
@@ -1543,6 +1603,18 @@ def export_all_productivity(request):
                     tjobs_cell = ws.cell(footer_row + 2, 8, f"={completed_jobs_expr}")
                     tjobs_cell.font = Font(bold=True)
                     tjobs_cell.number_format = "0"
+                    tjobs_cell.alignment = right_align
+                    tjobs_cell.border = border
+
+                    # Completed Jobs display
+                    tjobs_label = ws.cell(footer_row + 3, 7, "Effort per Provision:")
+                    tjobs_label.font = Font(bold=True)
+                    tjobs_label.alignment = right_align
+                    tjobs_label.border = border
+
+                    tjobs_cell = ws.cell(footer_row + 3, 8, f"=H{data_end_row + 3}/H{data_end_row + 4}")
+                    tjobs_cell.font = Font(bold=True)
+                    tjobs_cell.number_format = "0.00"
                     tjobs_cell.alignment = right_align
                     tjobs_cell.border = border
 
