@@ -1288,7 +1288,7 @@ def export_all_productivity(request):
         sum_headers = [
             "ID", "Username", "Full Name", "Employment",
             "Total Jobs Assigned", "Total Jobs Completed",
-            "Total Hours", "Average Jobs Per Hour", "Productivity (%)","Total Minutes","Effort per Provision"
+            "Total Hours", "Average Jobs Per Hour", "Productivity (%)","Total Minutes","Effort per Provision (minutes)"
         ]
 
         # Optional title row (merged)
@@ -1692,7 +1692,7 @@ def export_all_productivity(request):
                     tjobs_cell.border = border
 
                     # Completed Jobs display
-                    tjobs_label = ws.cell(footer_row + 3, 7, "Effort per Provision:")
+                    tjobs_label = ws.cell(footer_row + 3, 7, "Effort per Provision (minutes):")
                     tjobs_label.font = Font(bold=True)
                     tjobs_label.alignment = right_align
                     tjobs_label.border = border
